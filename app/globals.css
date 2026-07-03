@@ -1,0 +1,91 @@
+@import "tailwindcss";
+
+:root {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+html,
+body {
+  height: 100%;
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.leaflet-container {
+  width: 100%;
+  height: 100%;
+  background: #dbe4ec;
+  font: inherit;
+}
+
+/* keep map controls below our own UI */
+.leaflet-pane,
+.leaflet-top,
+.leaflet-bottom {
+  z-index: 10 !important;
+}
+
+.pp-user-dot {
+  position: relative;
+  width: 18px;
+  height: 18px;
+}
+.pp-user-dot::before {
+  content: "";
+  position: absolute;
+  inset: -9px;
+  border-radius: 9999px;
+  background: rgba(37, 99, 235, 0.25);
+  animation: pp-pulse 2s ease-out infinite;
+}
+.pp-user-dot::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  background: #2563eb;
+  border: 3px solid #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+}
+@keyframes pp-pulse {
+  0% { transform: scale(0.6); opacity: 0.9; }
+  70% { transform: scale(1.6); opacity: 0; }
+  100% { transform: scale(1.6); opacity: 0; }
+}
+
+.pp-marker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  color: #fff;
+  font-weight: 800;
+  font-size: 15px;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  border: 2px solid rgba(255, 255, 255, 0.95);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+  transition: transform 0.15s ease;
+}
+.pp-marker--selected {
+  transform: scale(1.35);
+  outline: 3px solid rgba(37, 99, 235, 0.45);
+  outline-offset: 1px;
+}
+
+.pp-sheet {
+  animation: pp-slide-up 0.22s ease-out;
+}
+@keyframes pp-slide-up {
+  from { transform: translateY(24px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.pp-scroll-x {
+  scrollbar-width: none;
+}
+.pp-scroll-x::-webkit-scrollbar {
+  display: none;
+}
