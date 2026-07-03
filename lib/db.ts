@@ -76,15 +76,36 @@ const SCHEMA = [
     payload TEXT NOT NULL,
     fetched_at INTEGER NOT NULL
   )`,
+  `CREATE TABLE IF NOT EXISTS payment_methods (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    type TEXT NOT NULL,
+    brand TEXT,
+    last4 TEXT,
+    email TEXT,
+    is_default INTEGER NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL
+  )`,
   `CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id)`,
   `CREATE INDEX IF NOT EXISTS idx_vehicles_user ON vehicles(user_id)`,
   `CREATE INDEX IF NOT EXISTS idx_tickets_user ON tickets(user_id, created_at)`,
+  `CREATE INDEX IF NOT EXISTS idx_paymeth_user ON payment_methods(user_id)`,
 ];
+
+// additive columns on existing tables; failures mean the column already exists
+const ALTERS = [`ALTER TABLE tickets ADD COLUMN payment_label TEXT`];
 
 async function migrate(): Promise<void> {
   const c = client();
   for (const sql of SCHEMA) {
     await c.execute(sql);
+  }
+  for (const sql of ALTERS) {
+    try {
+      await c.execute(sql);
+    } catch {
+      /* column exists */
+    }
   }
 }
 

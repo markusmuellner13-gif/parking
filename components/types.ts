@@ -23,6 +23,33 @@ export type User = { id: string; email: string; name: string };
 
 export type Vehicle = { id: string; plate: string; label: string | null };
 
+export type PaymentMethod = {
+  id: string;
+  type: "card" | "paypal" | "googlepay" | "applepay";
+  brand: string | null;
+  last4: string | null;
+  email: string | null;
+  isDefault: boolean;
+};
+
+export function paymentMethodLabel(m: PaymentMethod): string {
+  switch (m.type) {
+    case "card": return `${m.brand ?? "Karte"} •••• ${m.last4 ?? "????"}`;
+    case "paypal": return `PayPal${m.email ? ` (${m.email})` : ""}`;
+    case "googlepay": return "Google Pay";
+    case "applepay": return "Apple Pay";
+  }
+}
+
+export function paymentMethodIcon(m: PaymentMethod): string {
+  switch (m.type) {
+    case "card": return "💳";
+    case "paypal": return "🅿️";
+    case "googlepay": return "🇬";
+    case "applepay": return "";
+  }
+}
+
 export type Ticket = {
   id: string;
   plate: string;
@@ -37,6 +64,7 @@ export type Ticket = {
   endAt: number;
   stoppedAt: number | null;
   status: "active" | "stopped" | "expired";
+  paymentLabel: string | null;
 };
 
 export function euro(cents: number | null): string {

@@ -81,6 +81,15 @@ const CITY_ZONES: CityZone[] = [
   { id: "at-eisenstadt-kpz", name: "Kurzparkzone Eisenstadt – Zentrum", lat: 47.8456, lng: 16.5253, priceHourCents: 130, maxStayMinutes: 180, hours: "Mo–Fr 08:00–18:00, Sa 08:00–12:00", radiusM: 900 },
   { id: "at-krems-kpz", name: "Kurzparkzone Krems – Zentrum", lat: 48.4102, lng: 15.6144, priceHourCents: 160, maxStayMinutes: 180, hours: "Mo–Fr 08:00–18:00, Sa 08:00–12:00", radiusM: 1000 },
   { id: "at-moedling-kpz", name: "Kurzparkzone Mödling – Zentrum", lat: 48.0856, lng: 16.2831, priceHourCents: 200, maxStayMinutes: 180, hours: "Mo–Fr 08:00–18:00, Sa 08:00–12:00", radiusM: 900 },
+  // Italia – strisce blu (tariffe indicative, fa fede la segnaletica)
+  { id: "it-roma-blu", name: "Strisce Blu Roma – Centro Storico", lat: 41.9028, lng: 12.4964, priceHourCents: 150, maxStayMinutes: null, hours: "Lun–Sab 08:00–20:00", radiusM: 2500 },
+  { id: "it-milano-blu", name: "Sosta Blu Milano – Cerchia dei Bastioni", lat: 45.4642, lng: 9.1900, priceHourCents: 300, maxStayMinutes: 120, hours: "Lun–Ven 08:00–19:00", radiusM: 2000 },
+  { id: "it-torino-blu", name: "Strisce Blu Torino – Centro", lat: 45.0703, lng: 7.6869, priceHourCents: 170, maxStayMinutes: null, hours: "Lun–Ven 08:00–19:30", radiusM: 1800 },
+  { id: "it-bologna-blu", name: "Strisce Blu Bologna – Centro", lat: 44.4949, lng: 11.3426, priceHourCents: 240, maxStayMinutes: null, hours: "Lun–Dom 08:00–20:00", radiusM: 1500 },
+  { id: "it-firenze-blu", name: "Strisce Blu Firenze – Centro", lat: 43.7696, lng: 11.2558, priceHourCents: 200, maxStayMinutes: null, hours: "Lun–Sab 08:00–20:00", radiusM: 1500 },
+  { id: "it-verona-blu", name: "Strisce Blu Verona – Centro", lat: 45.4384, lng: 10.9916, priceHourCents: 200, maxStayMinutes: 120, hours: "Lun–Sab 08:00–20:00", radiusM: 1200 },
+  { id: "it-bolzano-blu", name: "Zona Blu Bolzano / Bozen – Centro", lat: 46.4983, lng: 11.3548, priceHourCents: 220, maxStayMinutes: 180, hours: "Lun–Ven 08:00–19:00, Sa 08:00–13:00", radiusM: 1200 },
+  { id: "it-trieste-blu", name: "Strisce Blu Trieste – Centro", lat: 45.6495, lng: 13.7768, priceHourCents: 150, maxStayMinutes: null, hours: "Lun–Sab 08:00–19:00", radiusM: 1200 },
 ];
 
 export function cityZonesNear(lat: number, lng: number, radiusM: number): Zone[] {

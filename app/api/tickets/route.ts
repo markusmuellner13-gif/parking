@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db, newId } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { jsonError, handleError } from "@/lib/api";
+import { mapPaymentRow, paymentLabel } from "@/lib/payments";
 
 export type TicketRow = {
   id: string;
@@ -17,6 +18,7 @@ export type TicketRow = {
   endAt: number;
   stoppedAt: number | null;
   status: "active" | "stopped" | "expired";
+  paymentLabel: string | null;
 };
 
 function mapRow(r: Record<string, unknown>): TicketRow {
@@ -38,6 +40,7 @@ function mapRow(r: Record<string, unknown>): TicketRow {
     endAt,
     stoppedAt: r.stopped_at != null ? Number(r.stopped_at) : null,
     status,
+    paymentLabel: r.payment_label != null ? String(r.payment_label) : null,
   };
 }
 
@@ -61,6 +64,7 @@ export async function POST(req: NextRequest) {
     const user = await requireUser();
     const body = await req.json().catch(() => ({}));
     const vehicleId = String(body.vehicleId ?? "");
+    const paymentMethodId = String(body.paymentMethodId ?? "");
     const minutes = Math.round(Number(body.minutes));
     const zone = body.zone as {
       id?: string; name?: string; lat?: number; lng?: number;
@@ -69,6 +73,7 @@ export async function POST(req: NextRequest) {
 
     if (!zone?.id || !zone?.name) return jsonError("Keine Parkzone ausgewählt.");
     if (!vehicleId) return jsonError("Ein Fahrzeug mit Kennzeichen ist für den Kauf erforderlich.");
+    if (!paymentMethodId) return jsonError("Bitte wähle eine Zahlungsmethode.");
     if (!isFinite(minutes) || minutes < 15 || minutes > 1440) return jsonError("Parkdauer muss zwischen 15 Minuten und 24 Stunden liegen.");
     if (zone.maxStayMinutes != null && minutes > zone.maxStayMinutes) {
       return jsonError(`In dieser Zone sind maximal ${zone.maxStayMinutes} Minuten erlaubt.`);
@@ -81,6 +86,14 @@ export async function POST(req: NextRequest) {
     });
     const vrow = veh.rows[0];
     if (!vrow) return jsonError("Fahrzeug nicht gefunden – bitte Kennzeichen anlegen.", 404);
+
+    const pm = await c.execute({
+      sql: "SELECT * FROM payment_methods WHERE id = ? AND user_id = ?",
+      args: [paymentMethodId, user.id],
+    });
+    const pmRow = pm.rows[0];
+    if (!pmRow) return jsonError("Zahlungsmethode nicht gefunden – bitte eine hinzufügen.", 404);
+    const payLabel = paymentLabel(mapPaymentRow(pmRow as unknown as Record<string, unknown>));
 
     const activeForVehicle = await c.execute({
       sql: "SELECT id FROM tickets WHERE user_id = ? AND vehicle_id = ? AND status = 'active' AND end_at > ?",
@@ -98,12 +111,12 @@ export async function POST(req: NextRequest) {
     await c.execute({
       sql: `INSERT INTO tickets
         (id, user_id, vehicle_id, plate, zone_id, zone_name, zone_lat, zone_lng,
-         price_hour_cents, price_cents, currency, start_at, end_at, status, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'EUR', ?, ?, 'active', ?)`,
+         price_hour_cents, price_cents, currency, start_at, end_at, status, created_at, payment_label)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'EUR', ?, ?, 'active', ?, ?)`,
       args: [
         id, user.id, vehicleId, String(vrow.plate), String(zone.id), String(zone.name),
         zone.lat ?? null, zone.lng ?? null,
-        priceHourCents, priceCents, now, now + minutes * 60_000, now,
+        priceHourCents, priceCents, now, now + minutes * 60_000, now, payLabel,
       ],
     });
 

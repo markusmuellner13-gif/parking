@@ -4,11 +4,12 @@ import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   api, euro, fmtDistance, fmtDuration, kindLabel, zoneColor,
-  type Ticket, type User, type Vehicle, type Zone,
+  type PaymentMethod, type Ticket, type User, type Vehicle, type Zone,
 } from "./types";
 import AuthSheet from "./AuthSheet";
 import ParkSheet from "./ParkSheet";
-import AccountSheet from "./AccountSheet";
+import SideDrawer from "./SideDrawer";
+import LocationPrompt from "./LocationPrompt";
 import ActiveTicketBar from "./ActiveTicketBar";
 
 const MapView = dynamic(() => import("./MapView"), {
@@ -42,7 +43,8 @@ export default function ParkApp() {
   const [selected, setSelected] = useState<Zone | null>(null);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [tickets, setTickets] = useState<Ticket[]>([]);
-  const [sheet, setSheet] = useState<"none" | "auth" | "park" | "account">("none");
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
+  const [sheet, setSheet] = useState<"none" | "auth" | "park" | "drawer" | "locprompt">("none");
   const [toast, setToast] = useState<string | null>(null);
   const [flyTo, setFlyTo] = useState<{ lat: number; lng: number; nonce: number } | null>(null);
   const [showSearchHere, setShowSearchHere] = useState(false);
@@ -50,6 +52,7 @@ export default function ParkApp() {
   const searchCenterRef = useRef<[number, number] | null>(null);
   const mapCenterRef = useRef<[number, number]>(FALLBACK);
   const parkIntentRef = useRef(false);
+  const watchIdRef = useRef<number | null>(null);
 
   const showToast = useCallback((msg: string) => {
     setToast(msg);
@@ -88,25 +91,23 @@ export default function ParkApp() {
     }
   }, []);
 
-  // initial: session + geolocation
-  useEffect(() => {
-    api<{ user: User | null; persistentDb: boolean }>("/api/auth/me")
-      .then((d) => {
-        setUser(d.user);
-        setPersistentDb(d.persistentDb);
-        if (d.user) {
-          refreshTickets();
-          refreshVehicles();
-        }
-      })
-      .catch(() => {});
+  const refreshPayments = useCallback(async () => {
+    try {
+      const data = await api<{ methods: PaymentMethod[] }>("/api/payment-methods");
+      setPaymentMethods(data.methods);
+    } catch {
+      /* not logged in */
+    }
+  }, []);
 
+  const startGeolocation = useCallback(() => {
     if (!("geolocation" in navigator)) {
       setGeoStatus("denied");
-      fetchZones(...FALLBACK);
+      if (!searchCenterRef.current) fetchZones(...FALLBACK);
       return;
     }
-    const watchId = navigator.geolocation.watchPosition(
+    if (watchIdRef.current != null) navigator.geolocation.clearWatch(watchIdRef.current);
+    watchIdRef.current = navigator.geolocation.watchPosition(
       (p) => {
         const pos: [number, number] = [p.coords.latitude, p.coords.longitude];
         setUserPos(pos);
@@ -122,8 +123,47 @@ export default function ParkApp() {
       },
       { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 }
     );
-    return () => navigator.geolocation.clearWatch(watchId);
-  }, [fetchZones, refreshTickets, refreshVehicles]);
+  }, [fetchZones]);
+
+  /** user gesture → triggers the browser permission dialog, then (re)starts the watch */
+  const requestLocation = useCallback(() => {
+    setSheet("none");
+    if (!("geolocation" in navigator)) return;
+    navigator.geolocation.getCurrentPosition(
+      (p) => {
+        const pos: [number, number] = [p.coords.latitude, p.coords.longitude];
+        setUserPos(pos);
+        setGeoStatus("ok");
+        setFlyTo({ lat: pos[0], lng: pos[1], nonce: Date.now() });
+        fetchZones(pos[0], pos[1]);
+        startGeolocation();
+      },
+      () => {
+        setGeoStatus("denied");
+        showToast("Ortung blockiert – bitte in den Browser-/Systemeinstellungen erlauben.");
+      },
+      { enableHighAccuracy: true, timeout: 15000 }
+    );
+  }, [fetchZones, startGeolocation, showToast]);
+
+  // initial: session + geolocation
+  useEffect(() => {
+    api<{ user: User | null; persistentDb: boolean }>("/api/auth/me")
+      .then((d) => {
+        setUser(d.user);
+        setPersistentDb(d.persistentDb);
+        if (d.user) {
+          refreshTickets();
+          refreshVehicles();
+          refreshPayments();
+        }
+      })
+      .catch(() => {});
+    startGeolocation();
+    return () => {
+      if (watchIdRef.current != null) navigator.geolocation?.clearWatch(watchIdRef.current);
+    };
+  }, [refreshTickets, refreshVehicles, refreshPayments, startGeolocation]);
 
   const onMapMoved = useCallback((lat: number, lng: number) => {
     mapCenterRef.current = [lat, lng];
@@ -150,13 +190,17 @@ export default function ParkApp() {
     setUser(u);
     refreshTickets();
     refreshVehicles();
+    refreshPayments();
     if (parkIntentRef.current) {
       parkIntentRef.current = false;
       setSheet("park");
+    } else if (geoStatus !== "ok") {
+      // fresh account without location: explain why the app wants it
+      setSheet("locprompt");
     } else {
       setSheet("none");
     }
-  }, [refreshTickets, refreshVehicles]);
+  }, [refreshTickets, refreshVehicles, refreshPayments, geoStatus]);
 
   const onTicketBought = useCallback((t: Ticket) => {
     setSheet("none");
@@ -183,7 +227,7 @@ export default function ParkApp() {
     <div className="relative flex h-dvh w-full flex-col overflow-hidden md:flex-row">
       {/* ===== Desktop sidebar / mobile overlays share components ===== */}
       <aside className="z-20 hidden w-[380px] shrink-0 flex-col border-r border-slate-200 bg-white md:flex">
-        <Header user={user} onAccount={() => setSheet(user ? "account" : "auth")} />
+        <Header user={user} onAccount={() => setSheet("drawer")} />
         {!persistentDb && <DemoBanner />}
         <ActiveTicketBar tickets={activeTickets} onChanged={refreshTickets} />
         <div className="flex-1 overflow-y-auto">
@@ -214,7 +258,7 @@ export default function ParkApp() {
 
         {/* mobile header */}
         <div className="absolute inset-x-0 top-0 z-20 px-3 pt-[calc(var(--safe-top)+0.5rem)] md:hidden">
-          <Header user={user} onAccount={() => setSheet(user ? "account" : "auth")} floating />
+          <Header user={user} onAccount={() => setSheet("drawer")} floating />
           {!persistentDb && <DemoBanner floating />}
           <ActiveTicketBar tickets={activeTickets} onChanged={refreshTickets} floating />
         </div>
@@ -265,26 +309,37 @@ export default function ParkApp() {
         <ParkSheet
           zone={selected}
           vehicles={vehicles}
+          paymentMethods={paymentMethods}
           onVehiclesChanged={refreshVehicles}
+          onPaymentsChanged={refreshPayments}
           onClose={() => setSheet("none")}
           onBought={onTicketBought}
         />
       )}
-      {sheet === "account" && user && (
-        <AccountSheet
+      {sheet === "drawer" && (
+        <SideDrawer
           user={user}
           vehicles={vehicles}
           tickets={tickets}
-          persistentDb={persistentDb}
+          paymentMethods={paymentMethods}
+          geoOk={geoStatus === "ok"}
+          onRequestLocation={requestLocation}
           onVehiclesChanged={refreshVehicles}
-          onClose={() => setSheet("none")}
+          onPaymentsChanged={refreshPayments}
+          onTicketsChanged={refreshTickets}
+          onLoginClick={() => setSheet("auth")}
           onLogout={() => {
             setUser(null);
             setVehicles([]);
             setTickets([]);
+            setPaymentMethods([]);
             setSheet("none");
           }}
+          onClose={() => setSheet("none")}
         />
+      )}
+      {sheet === "locprompt" && (
+        <LocationPrompt onActivate={requestLocation} onClose={() => setSheet("none")} />
       )}
 
       {toast && (

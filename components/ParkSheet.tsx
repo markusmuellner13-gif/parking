@@ -3,16 +3,19 @@
 import { useMemo, useState } from "react";
 import Sheet from "./Sheet";
 import TimeWheel from "./TimeWheel";
-import { api, euro, fmtDuration, type Ticket, type Vehicle, type Zone } from "./types";
+import { PaymentMethodAdd, PaymentMethodList } from "./PaymentMethods";
+import { api, euro, fmtDuration, type PaymentMethod, type Ticket, type Vehicle, type Zone } from "./types";
 
 const PRESETS = [30, 60, 120, 180];
 
 export default function ParkSheet({
-  zone, vehicles, onVehiclesChanged, onClose, onBought,
+  zone, vehicles, paymentMethods, onVehiclesChanged, onPaymentsChanged, onClose, onBought,
 }: {
   zone: Zone;
   vehicles: Vehicle[];
+  paymentMethods: PaymentMethod[];
   onVehiclesChanged: () => void;
+  onPaymentsChanged: () => void;
   onClose: () => void;
   onBought: (t: Ticket) => void;
 }) {
@@ -21,6 +24,10 @@ export default function ParkSheet({
   const [vehicleId, setVehicleId] = useState<string | null>(vehicles[0]?.id ?? null);
   const [newPlate, setNewPlate] = useState("");
   const [addingPlate, setAddingPlate] = useState(vehicles.length === 0);
+  const [paymentId, setPaymentId] = useState<string | null>(
+    paymentMethods.find((m) => m.isDefault)?.id ?? paymentMethods[0]?.id ?? null
+  );
+  const [addingPayment, setAddingPayment] = useState(paymentMethods.length === 0);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -55,10 +62,12 @@ export default function ParkSheet({
         vid = v?.id ?? null;
       }
       if (!vid) throw new Error("Bitte wähle ein Fahrzeug mit Kennzeichen aus.");
+      if (!paymentId) throw new Error("Bitte wähle eine Zahlungsmethode aus.");
       const data = await api<{ ticket: Ticket }>("/api/tickets", {
         method: "POST",
         body: JSON.stringify({
           vehicleId: vid,
+          paymentMethodId: paymentId,
           minutes,
           zone: {
             id: zone.id, name: zone.name, lat: zone.lat, lng: zone.lng,
@@ -160,6 +169,32 @@ export default function ParkSheet({
           </button>
         ))}
       </div>
+
+      {/* payment method (mandatory) */}
+      <h3 className="mb-1.5 mt-4 text-xs font-bold uppercase tracking-wide text-slate-400">Zahlungsmethode</h3>
+      {!addingPayment && paymentMethods.length > 0 ? (
+        <>
+          <PaymentMethodList
+            methods={paymentMethods}
+            onChanged={onPaymentsChanged}
+            selectable
+            selectedId={paymentId}
+            onSelect={setPaymentId}
+          />
+          <button onClick={() => setAddingPayment(true)} className="mt-1.5 text-sm font-semibold text-blue-700">
+            + Andere Zahlungsmethode
+          </button>
+        </>
+      ) : (
+        <PaymentMethodAdd
+          onAdded={(m) => {
+            setPaymentId(m.id);
+            setAddingPayment(false);
+            onPaymentsChanged();
+          }}
+          onCancel={paymentMethods.length > 0 ? () => setAddingPayment(false) : undefined}
+        />
+      )}
 
       {error && <p className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
 
