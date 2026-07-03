@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Sheet from "./Sheet";
+import TimeWheel from "./TimeWheel";
 import { api, euro, fmtDuration, type Ticket, type Vehicle, type Zone } from "./types";
 
 const PRESETS = [30, 60, 120, 180];
@@ -129,15 +130,22 @@ export default function ParkSheet({
 
       {/* duration */}
       <h3 className="mb-1.5 mt-4 text-xs font-bold uppercase tracking-wide text-slate-400">Parkdauer</h3>
-      <div className="flex items-center justify-between rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-200">
-        <button onClick={() => bump(-15)} className="h-11 w-11 rounded-full bg-white text-xl font-bold shadow ring-1 ring-slate-200 active:scale-95">−</button>
-        <div className="text-center">
-          <div className="text-2xl font-extrabold tabular-nums text-slate-900">{fmtDuration(minutes)}</div>
-          <div className="text-[11px] text-slate-500">
-            bis {new Date(Date.now() + minutes * 60_000).toLocaleTimeString("de-AT", { hour: "2-digit", minute: "2-digit" })} Uhr
-          </div>
-        </div>
-        <button onClick={() => bump(15)} className="h-11 w-11 rounded-full bg-white text-xl font-bold shadow ring-1 ring-slate-200 active:scale-95">+</button>
+      <div className="relative rounded-2xl bg-slate-50 py-3 ring-1 ring-slate-200">
+        <TimeWheel minutes={minutes} maxMinutes={maxMin} priceHourCents={zone.priceHourCents} onChange={setMinutes} />
+        <button
+          onClick={() => bump(-15)}
+          aria-label="15 Minuten weniger"
+          className="absolute bottom-3 left-3 h-10 w-10 rounded-full bg-white text-lg font-bold shadow ring-1 ring-slate-200 active:scale-95"
+        >
+          −
+        </button>
+        <button
+          onClick={() => bump(15)}
+          aria-label="15 Minuten mehr"
+          className="absolute bottom-3 right-3 h-10 w-10 rounded-full bg-white text-lg font-bold shadow ring-1 ring-slate-200 active:scale-95"
+        >
+          +
+        </button>
       </div>
       <div className="mt-2 flex gap-2">
         {PRESETS.filter((p) => p <= maxMin).map((p) => (
