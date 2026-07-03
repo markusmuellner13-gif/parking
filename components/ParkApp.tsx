@@ -235,6 +235,13 @@ function ParkAppInner() {
     [tickets]
   );
 
+  // unnamed street_side segments stay on the map as street highlighting but
+  // would flood the list with dozens of identical "street parking" entries
+  const listZones = useMemo(
+    () => zones.filter((z) => !(z.source === "osm" && z.generic === "street" && z.polygon)),
+    [zones]
+  );
+
   const locate = useCallback(() => {
     if (userPos) {
       setFlyTo({ lat: userPos[0], lng: userPos[1], nonce: Date.now() });
@@ -256,7 +263,7 @@ function ParkAppInner() {
             <ZoneDetail zone={selected} onBack={() => selectZone(null)} onPark={startParking} />
           ) : (
             <ZoneList
-              zones={zones}
+              zones={listZones}
               loading={zonesLoading}
               geoDenied={geoStatus === "denied"}
               onSelect={(z) => selectZone(z, true)}
@@ -318,7 +325,7 @@ function ParkAppInner() {
                   {t("geo.denied.mobile")}
                 </p>
               )}
-              <MobileZoneCards zones={zones} loading={zonesLoading} onSelect={(z) => selectZone(z, true)} />
+              <MobileZoneCards zones={listZones} loading={zonesLoading} onSelect={(z) => selectZone(z, true)} />
             </>
           )}
         </div>

@@ -110,10 +110,13 @@ export default function MapView({
     if (!layer) return;
     layer.clearLayers();
 
-    // when real street data exists, streets carry the zone shape and the
-    // tariff-zone circles would wrongly suggest a radius – draw them only as
-    // a subtle dashed boundary in that case
-    const haveStreets = paidStreets.length >= 5;
+    // when real street data exists (fee-tagged street centerlines or mapped
+    // street_side parking strips), streets carry the zone shape and the
+    // tariff-zone circles would wrongly suggest a radius – skip them then
+    const streetShapes =
+      paidStreets.length +
+      zones.filter((z) => z.source === "osm" && z.kind === "street" && z.polygon).length;
+    const haveStreets = streetShapes >= 5;
 
     for (const zone of zones) {
       const selected = zone.id === selectedId;
