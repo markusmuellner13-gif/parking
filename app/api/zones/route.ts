@@ -20,8 +20,8 @@ export async function GET(req: NextRequest) {
       osmZonesNear(lat, lng, radiusM),
     ]);
 
-    const zones: Zone[] = [...city, ...osm].sort((a, b) => a.distanceM - b.distanceM);
-    return NextResponse.json({ zones, radiusM });
+    const zones: Zone[] = [...city, ...osm.zones].sort((a, b) => a.distanceM - b.distanceM);
+    return NextResponse.json({ zones, paidStreets: osm.paidStreets, radiusM });
   } catch (err) {
     return handleError(err);
   }

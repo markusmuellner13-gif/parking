@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
     const user = await requireUser();
     const body = await req.json().catch(() => ({}));
     const plate = normalizePlate(String(body.plate ?? ""));
-    if (!plate) return jsonError("Ungültiges Kennzeichen (2–12 Zeichen, Buchstaben/Ziffern).");
+    if (!plate) return jsonError("Ungültiges Kennzeichen (2–12 Zeichen, Buchstaben/Ziffern).", 400, "invalid_plate");
     const label = String(body.label ?? "").trim() || null;
 
     const c = await db();
@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
       sql: "SELECT id FROM vehicles WHERE user_id = ? AND plate = ?",
       args: [user.id, plate],
     });
-    if (dup.rows.length > 0) return jsonError("Dieses Kennzeichen ist bereits gespeichert.", 409);
+    if (dup.rows.length > 0) return jsonError("Dieses Kennzeichen ist bereits gespeichert.", 409, "plate_exists");
 
     const id = newId();
     await c.execute({
@@ -59,7 +59,7 @@ export async function DELETE(req: NextRequest) {
       sql: "SELECT id FROM tickets WHERE user_id = ? AND vehicle_id = ? AND status = 'active' AND end_at > ?",
       args: [user.id, id, Date.now()],
     });
-    if (active.rows.length > 0) return jsonError("Für dieses Fahrzeug läuft gerade ein Parkschein.", 409);
+    if (active.rows.length > 0) return jsonError("Für dieses Fahrzeug läuft gerade ein Parkschein.", 409, "vehicle_has_ticket");
     await c.execute({
       sql: "DELETE FROM vehicles WHERE id = ? AND user_id = ?",
       args: [id, user.id],

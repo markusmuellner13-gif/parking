@@ -89,3 +89,44 @@ body {
 .pp-scroll-x::-webkit-scrollbar {
   display: none;
 }
+
+/* ===== dark mode =====
+   The whole UI is built from a small set of light utilities; instead of
+   sprinkling dark: variants over every component we re-map those utilities
+   under html.dark. */
+.dark body {
+  background: #0b1220;
+  color: #e2e8f0;
+}
+.dark .bg-slate-100 { background-color: #16233b; }
+.dark .bg-slate-200 { background-color: #24324a; }
+.dark .bg-white { background-color: #1e293b; }
+.dark .bg-white\/95 { background-color: rgba(23, 33, 51, 0.95); }
+.dark .bg-slate-50 { background-color: #16233b; }
+.dark .bg-blue-50 { background-color: #172554; }
+.dark .bg-blue-100 { background-color: #1e3a8a; }
+.dark .bg-red-50 { background-color: #451a1a; }
+.dark .bg-amber-50, .dark .bg-amber-100 { background-color: #422006; }
+.dark .bg-emerald-100 { background-color: #064e3b; }
+.dark .text-slate-900 { color: #f1f5f9; }
+.dark .text-slate-800 { color: #e2e8f0; }
+.dark .text-slate-700 { color: #cbd5e1; }
+.dark .text-slate-600 { color: #a8b6c8; }
+.dark .text-slate-500 { color: #8b9bb0; }
+.dark .text-slate-400 { color: #64748b; }
+.dark .text-blue-700 { color: #93c5fd; }
+.dark .text-blue-900 { color: #bfdbfe; }
+.dark .text-red-700 { color: #fca5a5; }
+.dark .text-amber-800, .dark .text-amber-900 { color: #fcd34d; }
+.dark .text-emerald-700 { color: #6ee7b7; }
+.dark .ring-slate-200 { --tw-ring-color: #334155; }
+.dark .ring-slate-300 { --tw-ring-color: #475569; }
+.dark .ring-blue-200 { --tw-ring-color: #1e40af; }
+.dark .ring-amber-200 { --tw-ring-color: #78350f; }
+.dark .ring-emerald-700\/40 { --tw-ring-color: rgba(6, 95, 70, 0.6); }
+.dark .border-slate-100 { border-color: #1e293b; }
+.dark .border-slate-200 { border-color: #334155; }
+.dark .border-slate-300 { border-color: #475569; }
+.dark .border-slate-400 { border-color: #64748b; }
+.dark .leaflet-container { background: #0b1220; }
+.dark .pp-marker { border-color: rgba(15, 23, 42, 0.9); }

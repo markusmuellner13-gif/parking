@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
     });
     const row = res.rows[0];
     if (!row || !(await verifyPassword(password, String(row.password_hash)))) {
-      return jsonError("E-Mail oder Passwort ist falsch.", 401);
+      return jsonError("E-Mail oder Passwort ist falsch.", 401, "bad_credentials");
     }
 
     const token = await createSession(String(row.id));

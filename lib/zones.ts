@@ -19,6 +19,8 @@ export type Zone = {
   areaRadiusM: number | null;
   /** … or real outline for OSM parking areas */
   polygon: [number, number][] | null;
+  /** set when the zone has no proper name; the client localizes it */
+  generic: "street" | "garage" | "underground" | "surface" | "ticket_machine" | null;
 };
 
 export function haversineM(lat1: number, lng1: number, lat2: number, lng2: number): number {
@@ -115,6 +117,7 @@ export function cityZonesNear(lat: number, lng: number, radiusM: number): Zone[]
         distanceM: inside ? 0 : d - z.radiusM,
         areaRadiusM: z.radiusM,
         polygon: null,
+        generic: null,
       },
     ];
   });

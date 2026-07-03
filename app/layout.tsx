@@ -29,9 +29,14 @@ export const viewport: Viewport = {
   themeColor: "#1e3a8a",
 };
 
+const THEME_INIT = `try{var t=localStorage.getItem("pp_theme");if(t==="dark"||(!t&&matchMedia("(prefers-color-scheme: dark)").matches))document.documentElement.classList.add("dark")}catch(e){}`;
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="de">
+    <html lang="de" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT }} />
+      </head>
       <body className="h-dvh w-full overflow-hidden bg-slate-100 text-slate-900 antialiased">
         {children}
         <SwRegister />

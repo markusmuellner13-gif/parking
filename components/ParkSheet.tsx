@@ -4,7 +4,11 @@ import { useMemo, useState } from "react";
 import Sheet from "./Sheet";
 import TimeWheel from "./TimeWheel";
 import { PaymentMethodAdd, PaymentMethodList } from "./PaymentMethods";
-import { api, euro, fmtDuration, type PaymentMethod, type Ticket, type Vehicle, type Zone } from "./types";
+import {
+  api, euro, fmtDuration, zoneDisplayName,
+  type PaymentMethod, type Ticket, type Vehicle, type Zone,
+} from "./types";
+import { useI18n } from "./i18n";
 
 const PRESETS = [30, 60, 120, 180];
 
@@ -19,6 +23,7 @@ export default function ParkSheet({
   onClose: () => void;
   onBought: (t: Ticket) => void;
 }) {
+  const { t, terr } = useI18n();
   const maxMin = zone.maxStayMinutes ?? 720;
   const [minutes, setMinutes] = useState(Math.min(60, maxMin));
   const [vehicleId, setVehicleId] = useState<string | null>(vehicles[0]?.id ?? null);
@@ -57,12 +62,12 @@ export default function ParkSheet({
     try {
       let vid = vehicleId;
       if (addingPlate) {
-        if (!newPlate.trim()) throw new Error("Bitte gib dein Kennzeichen ein – ohne Kennzeichen kein Parkschein.");
+        if (!newPlate.trim()) throw new Error(t("park.plateFirst"));
         const v = await addPlate();
         vid = v?.id ?? null;
       }
-      if (!vid) throw new Error("Bitte wähle ein Fahrzeug mit Kennzeichen aus.");
-      if (!paymentId) throw new Error("Bitte wähle eine Zahlungsmethode aus.");
+      if (!vid) throw new Error(t("park.pickVehicle"));
+      if (!paymentId) throw new Error(t("park.pickPayment"));
       const data = await api<{ ticket: Ticket }>("/api/tickets", {
         method: "POST",
         body: JSON.stringify({
@@ -70,30 +75,28 @@ export default function ParkSheet({
           paymentMethodId: paymentId,
           minutes,
           zone: {
-            id: zone.id, name: zone.name, lat: zone.lat, lng: zone.lng,
+            id: zone.id, name: zoneDisplayName(zone, t), lat: zone.lat, lng: zone.lng,
             priceHourCents: zone.priceHourCents, maxStayMinutes: zone.maxStayMinutes,
           },
         }),
       });
       onBought(data.ticket);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Fehler");
+      setError(terr(err));
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <Sheet title="Parkschein lösen" onClose={onClose}>
+    <Sheet title={t("park.title")} onClose={onClose}>
       <p className="mb-4 rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-600 ring-1 ring-slate-200">
-        📍 <span className="font-semibold text-slate-900">{zone.name}</span>
-        {zone.maxStayMinutes && <span> · max. {fmtDuration(zone.maxStayMinutes)}</span>}
+        📍 <span className="font-semibold text-slate-900">{zoneDisplayName(zone, t)}</span>
+        {zone.maxStayMinutes && <span> · {t("park.max")} {fmtDuration(zone.maxStayMinutes)}</span>}
       </p>
 
       {/* vehicle / plate (mandatory) */}
-      <h3 className="mb-1.5 text-xs font-bold uppercase tracking-wide text-slate-400">
-        Fahrzeug (Kennzeichen ist Pflicht)
-      </h3>
+      <h3 className="mb-1.5 text-xs font-bold uppercase tracking-wide text-slate-400">{t("park.vehicle")}</h3>
       {!addingPlate && vehicles.length > 0 ? (
         <div className="mb-2 space-y-2">
           {vehicles.map((v) => (
@@ -117,7 +120,7 @@ export default function ParkSheet({
             </label>
           ))}
           <button onClick={() => setAddingPlate(true)} className="text-sm font-semibold text-blue-700">
-            + Anderes Kennzeichen
+            {t("park.otherPlate")}
           </button>
         </div>
       ) : (
@@ -125,32 +128,32 @@ export default function ParkSheet({
           <input
             value={newPlate}
             onChange={(e) => setNewPlate(e.target.value.toUpperCase())}
-            placeholder="z. B. W 123 AB"
+            placeholder={t("park.platePlaceholder")}
             maxLength={12}
             className="w-full rounded-xl border-2 border-slate-300 bg-white px-3.5 py-3 text-center font-mono text-lg font-bold tracking-[0.2em] uppercase outline-none focus:border-blue-600"
           />
           {vehicles.length > 0 && (
             <button onClick={() => setAddingPlate(false)} className="mt-1.5 text-sm font-semibold text-blue-700">
-              ← Gespeichertes Fahrzeug wählen
+              {t("park.savedVehicle")}
             </button>
           )}
         </div>
       )}
 
       {/* duration */}
-      <h3 className="mb-1.5 mt-4 text-xs font-bold uppercase tracking-wide text-slate-400">Parkdauer</h3>
+      <h3 className="mb-1.5 mt-4 text-xs font-bold uppercase tracking-wide text-slate-400">{t("park.duration")}</h3>
       <div className="relative rounded-2xl bg-slate-50 py-3 ring-1 ring-slate-200">
         <TimeWheel minutes={minutes} maxMinutes={maxMin} priceHourCents={zone.priceHourCents} onChange={setMinutes} />
         <button
           onClick={() => bump(-15)}
-          aria-label="15 Minuten weniger"
+          aria-label={t("park.less")}
           className="absolute bottom-3 left-3 h-10 w-10 rounded-full bg-white text-lg font-bold shadow ring-1 ring-slate-200 active:scale-95"
         >
           −
         </button>
         <button
           onClick={() => bump(15)}
-          aria-label="15 Minuten mehr"
+          aria-label={t("park.more")}
           className="absolute bottom-3 right-3 h-10 w-10 rounded-full bg-white text-lg font-bold shadow ring-1 ring-slate-200 active:scale-95"
         >
           +
@@ -171,7 +174,7 @@ export default function ParkSheet({
       </div>
 
       {/* payment method (mandatory) */}
-      <h3 className="mb-1.5 mt-4 text-xs font-bold uppercase tracking-wide text-slate-400">Zahlungsmethode</h3>
+      <h3 className="mb-1.5 mt-4 text-xs font-bold uppercase tracking-wide text-slate-400">{t("park.payment")}</h3>
       {!addingPayment && paymentMethods.length > 0 ? (
         <>
           <PaymentMethodList
@@ -182,7 +185,7 @@ export default function ParkSheet({
             onSelect={setPaymentId}
           />
           <button onClick={() => setAddingPayment(true)} className="mt-1.5 text-sm font-semibold text-blue-700">
-            + Andere Zahlungsmethode
+            {t("park.otherPayment")}
           </button>
         </>
       ) : (
@@ -203,11 +206,9 @@ export default function ParkSheet({
         disabled={busy}
         className="mt-4 w-full rounded-xl bg-blue-700 py-3.5 text-base font-bold text-white shadow-md transition active:scale-[0.98] disabled:opacity-60"
       >
-        {busy ? "Wird gebucht…" : `Jetzt kaufen · ${euro(priceCents)}`}
+        {busy ? t("park.buying") : t("park.buy", { p: euro(priceCents) })}
       </button>
-      <p className="mt-2 text-center text-[11px] text-slate-400">
-        Demo-Zahlung – es wird nichts abgebucht. Bei vorzeitigem Stopp zahlst du nur die genutzte Zeit.
-      </p>
+      <p className="mt-2 text-center text-[11px] text-slate-400">{t("park.demoNote")}</p>
     </Sheet>
   );
 }

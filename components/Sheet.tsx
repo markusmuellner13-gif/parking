@@ -1,8 +1,11 @@
 "use client";
 
+import { useI18n } from "./i18n";
+
 export default function Sheet({
   title, onClose, children,
 }: { title: string; onClose: () => void; children: React.ReactNode }) {
+  const { t } = useI18n();
   return (
     <div className="fixed inset-0 z-40 flex items-end justify-center bg-slate-900/50 backdrop-blur-[2px] md:items-center" onClick={onClose}>
       <div
@@ -11,7 +14,7 @@ export default function Sheet({
       >
         <div className="flex items-center justify-between px-5 pb-2 pt-4">
           <h2 className="text-lg font-bold text-slate-900">{title}</h2>
-          <button onClick={onClose} aria-label="Schließen" className="rounded-full bg-slate-100 px-2.5 py-1 text-sm text-slate-500 active:scale-95">
+          <button onClick={onClose} aria-label={t("drawer.close")} className="rounded-full bg-slate-100 px-2.5 py-1 text-sm text-slate-500 active:scale-95">
             ✕
           </button>
         </div>

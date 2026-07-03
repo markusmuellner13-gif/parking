@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { euro, fmtDuration } from "./types";
+import { useI18n } from "./i18n";
 
 const MIN_MINUTES = 15;
 const MINUTES_PER_REV = 120; // one full spin = 2 h
@@ -28,6 +29,7 @@ function pointerAngle(el: HTMLElement, clientX: number, clientY: number): number
 }
 
 export default function TimeWheel({ minutes, maxMinutes, priceHourCents, onChange }: Props) {
+  const { t, locale } = useI18n();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const totalAngleRef = useRef(minutes * DEG_PER_MINUTE);
   const lastPointerRef = useRef(0);
@@ -93,7 +95,7 @@ export default function TimeWheel({ minutes, maxMinutes, priceHourCents, onChang
   const circumference = 2 * Math.PI * R;
 
   const priceCents = Math.round(((priceHourCents ?? 0) * minutes) / 60);
-  const endTime = new Date(Date.now() + minutes * 60_000).toLocaleTimeString("de-AT", {
+  const endTime = new Date(Date.now() + minutes * 60_000).toLocaleTimeString(locale, {
     hour: "2-digit",
     minute: "2-digit",
   });
@@ -119,7 +121,7 @@ export default function TimeWheel({ minutes, maxMinutes, priceHourCents, onChang
         className="relative select-none"
         style={{ width: SIZE, height: SIZE, touchAction: "none", cursor: dragging ? "grabbing" : "grab" }}
         role="slider"
-        aria-label="Parkdauer"
+        aria-label={t("wheel.label")}
         aria-valuemin={MIN_MINUTES}
         aria-valuemax={maxMinutes}
         aria-valuenow={minutes}
@@ -172,14 +174,14 @@ export default function TimeWheel({ minutes, maxMinutes, priceHourCents, onChang
           <div className={`text-4xl font-black tabular-nums tracking-tight ${dragging ? "text-blue-700" : "text-slate-900"}`}>
             {fmtDuration(minutes)}
           </div>
-          <div className="mt-0.5 text-xs font-medium text-slate-500">bis {endTime} Uhr</div>
+          <div className="mt-0.5 text-xs font-medium text-slate-500">{t("park.until", { t: endTime })}</div>
           <div className="mt-1.5 rounded-full bg-blue-50 px-3 py-0.5 text-sm font-bold text-blue-700 ring-1 ring-blue-200">
-            {priceHourCents == null || priceHourCents === 0 ? "gratis" : euro(priceCents)}
+            {priceHourCents == null || priceHourCents === 0 ? t("zone.free") : euro(priceCents)}
           </div>
         </div>
       </div>
       <p className="mx-auto mt-1 max-w-[190px] text-center text-[11px] leading-tight text-slate-400">
-        🎡 Am Rad drehen · 1 Umdrehung = 2 h{maxMinutes < 1440 ? ` · max. ${fmtDuration(maxMinutes)}` : ""}
+        {t("wheel.hint")}{maxMinutes < 1440 ? ` · ${t("park.max")} ${fmtDuration(maxMinutes)}` : ""}
       </p>
     </div>
   );

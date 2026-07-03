@@ -17,7 +17,18 @@ export type Zone = {
   distanceM: number;
   areaRadiusM: number | null;
   polygon: [number, number][] | null;
+  /** set when the zone has no proper name; client shows a localized generic name */
+  generic: "street" | "garage" | "underground" | "surface" | "ticket_machine" | null;
 };
+
+/** street segments with paid parking (drawn as highlighted streets on the map) */
+export type PaidStreet = [number, number][];
+
+export function zoneDisplayName(zone: Zone, t: (k: string) => string): string {
+  if (zone.name) return zone.name;
+  if (zone.generic === "ticket_machine") return t("generic.ticket_machine");
+  return t(`kind.${zone.generic ?? zone.kind}`);
+}
 
 export type User = { id: string; email: string; name: string };
 
@@ -73,7 +84,6 @@ export function euro(cents: number | null): string {
 }
 
 export function fmtDistance(m: number): string {
-  if (m < 25) return "hier";
   if (m < 1000) return `${m} m`;
   return `${(m / 1000).toFixed(1).replace(".", ",")} km`;
 }
@@ -86,19 +96,20 @@ export function fmtDuration(min: number): string {
   return `${h} h ${m} min`;
 }
 
-export function kindLabel(kind: ZoneKind): string {
-  switch (kind) {
-    case "street": return "Straßenparken";
-    case "garage": return "Parkhaus";
-    case "underground": return "Tiefgarage";
-    default: return "Parkplatz";
-  }
-}
-
 export function zoneColor(zone: Zone): string {
   if (zone.priceHourCents == null || zone.priceHourCents === 0) return "#16a34a";
   if (zone.kind === "garage" || zone.kind === "underground") return "#7c3aed";
   return "#2563eb";
+}
+
+export class ApiError extends Error {
+  code?: string;
+  params?: Record<string, string | number>;
+  constructor(message: string, code?: string, params?: Record<string, string | number>) {
+    super(message);
+    this.code = code;
+    this.params = params;
+  }
 }
 
 export async function api<T>(url: string, init?: RequestInit): Promise<T> {
@@ -106,7 +117,11 @@ export async function api<T>(url: string, init?: RequestInit): Promise<T> {
     ...init,
     headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
   });
-  const data = (await res.json().catch(() => ({}))) as T & { error?: string };
-  if (!res.ok) throw new Error(data?.error ?? `Fehler (${res.status})`);
+  const data = (await res.json().catch(() => ({}))) as T & {
+    error?: string;
+    code?: string;
+    params?: Record<string, string | number>;
+  };
+  if (!res.ok) throw new ApiError(data?.error ?? `Error (${res.status})`, data?.code, data?.params);
   return data;
 }

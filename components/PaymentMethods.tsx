@@ -2,11 +2,13 @@
 
 import { useState } from "react";
 import { api, paymentMethodLabel, type PaymentMethod } from "./types";
+import { useI18n } from "./i18n";
 
 /** Add-a-payment-method chooser: card, PayPal, Google Pay, Apple Pay (demo vault). */
 export function PaymentMethodAdd({
   onAdded, onCancel,
 }: { onAdded: (m: PaymentMethod) => void; onCancel?: () => void }) {
+  const { t, terr } = useI18n();
   const [mode, setMode] = useState<"pick" | "card" | "paypal">("pick");
   const [number, setNumber] = useState("");
   const [expiry, setExpiry] = useState("");
@@ -24,7 +26,7 @@ export function PaymentMethodAdd({
       });
       onAdded(data.method);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Fehler");
+      setError(terr(err));
     } finally {
       setBusy(false);
     }
@@ -39,7 +41,7 @@ export function PaymentMethodAdd({
     <div className="rounded-xl bg-slate-50 p-3 ring-1 ring-slate-200">
       {mode === "pick" && (
         <div className="grid grid-cols-2 gap-2">
-          <button disabled={busy} onClick={() => setMode("card")} className={chip}>💳 Karte</button>
+          <button disabled={busy} onClick={() => setMode("card")} className={chip}>{t("pay.card")}</button>
           <button disabled={busy} onClick={() => setMode("paypal")} className={chip}>
             <span className="font-extrabold italic text-[#003087]">Pay</span>
             <span className="-ml-1.5 font-extrabold italic text-[#0070ba]">Pal</span>
@@ -57,7 +59,7 @@ export function PaymentMethodAdd({
         <div className="space-y-2">
           <input
             className={`${input} font-mono tracking-wider`}
-            placeholder="Kartennummer"
+            placeholder={t("pay.cardNumber")}
             inputMode="numeric"
             value={number}
             onChange={(e) => setNumber(e.target.value.replace(/[^\d ]/g, ""))}
@@ -66,7 +68,7 @@ export function PaymentMethodAdd({
           <div className="flex gap-2">
             <input
               className={`${input} w-28 text-center font-mono`}
-              placeholder="MM/JJ"
+              placeholder={t("pay.expiry")}
               inputMode="numeric"
               value={expiry}
               onChange={(e) => {
@@ -81,7 +83,7 @@ export function PaymentMethodAdd({
               onClick={() => add({ type: "card", number, expiry })}
               className="flex-1 rounded-xl bg-blue-700 text-sm font-bold text-white active:scale-95 disabled:opacity-60"
             >
-              {busy ? "…" : "Karte speichern"}
+              {busy ? "…" : t("pay.saveCard")}
             </button>
           </div>
         </div>
@@ -92,7 +94,7 @@ export function PaymentMethodAdd({
           <input
             className={input}
             type="email"
-            placeholder="PayPal-E-Mail"
+            placeholder={t("pay.ppEmail")}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
           />
@@ -108,18 +110,16 @@ export function PaymentMethodAdd({
 
       {mode !== "pick" && (
         <button onClick={() => setMode("pick")} className="mt-2 text-xs font-semibold text-blue-700">
-          ← Andere Zahlungsart
+          {t("pay.other")}
         </button>
       )}
       {onCancel && mode === "pick" && (
         <button onClick={onCancel} className="mt-2 text-xs font-semibold text-slate-500">
-          Abbrechen
+          {t("pay.cancel")}
         </button>
       )}
       {error && <p className="mt-2 rounded-lg bg-red-50 px-2 py-1.5 text-xs text-red-700">{error}</p>}
-      <p className="mt-2 text-[10px] text-slate-400">
-        Demo-Modus: Es wird nichts abgebucht. Bei Karten werden nur Marke und letzte 4 Ziffern gespeichert.
-      </p>
+      <p className="mt-2 text-[10px] text-slate-400">{t("pay.demoNote")}</p>
     </div>
   );
 }
@@ -133,6 +133,7 @@ export function PaymentMethodList({
   selectedId?: string | null;
   onSelect?: (id: string) => void;
 }) {
+  const { t } = useI18n();
   async function remove(id: string) {
     await api(`/api/payment-methods?id=${id}`, { method: "DELETE" }).catch(() => {});
     onChanged();
@@ -161,7 +162,7 @@ export function PaymentMethodList({
             {paymentMethodLabel(m)}
           </span>
           {m.isDefault && (
-            <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-700">Standard</span>
+            <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-700">{t("pay.default")}</span>
           )}
           {!selectable && (
             <>
@@ -170,10 +171,10 @@ export function PaymentMethodList({
                   onClick={() => makeDefault(m.id)}
                   className="text-[11px] font-semibold text-blue-700"
                 >
-                  Als Standard
+                  {t("pay.makeDefault")}
                 </button>
               )}
-              <button onClick={() => remove(m.id)} aria-label="Löschen" className="text-sm text-red-500">
+              <button onClick={() => remove(m.id)} aria-label={t("drawer.delete")} className="text-sm text-red-500">
                 🗑
               </button>
             </>

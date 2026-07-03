@@ -38,18 +38,18 @@ export async function POST(req: NextRequest) {
       const num = String(body.number ?? "").replace(/[\s-]/g, "");
       const expiry = String(body.expiry ?? "").trim();
       if (num.length < 12 || num.length > 19 || !luhnValid(num)) {
-        return jsonError("Ungültige Kartennummer.");
+        return jsonError("Ungültige Kartennummer.", 400, "invalid_card");
       }
       if (!/^(0[1-9]|1[0-2])\/\d{2}$/.test(expiry)) {
-        return jsonError("Ablaufdatum bitte als MM/JJ angeben.");
+        return jsonError("Ablaufdatum bitte als MM/JJ angeben.", 400, "invalid_expiry");
       }
       const [mm, yy] = expiry.split("/").map((v) => parseInt(v, 10));
-      if (new Date(2000 + yy, mm, 1).getTime() < Date.now()) return jsonError("Diese Karte ist abgelaufen.");
+      if (new Date(2000 + yy, mm, 1).getTime() < Date.now()) return jsonError("Diese Karte ist abgelaufen.", 400, "card_expired");
       brand = cardBrand(num);
       last4 = num.slice(-4);
     } else if (type === "paypal") {
       email = String(body.email ?? "").trim().toLowerCase();
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return jsonError("Bitte gib deine PayPal-E-Mail an.");
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return jsonError("Bitte gib deine PayPal-E-Mail an.", 400, "invalid_paypal");
       brand = "PayPal";
     } else if (type === "googlepay" || type === "applepay") {
       brand = type === "googlepay" ? "Google Pay" : "Apple Pay";

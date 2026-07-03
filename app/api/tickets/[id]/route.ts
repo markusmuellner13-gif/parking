@@ -26,7 +26,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     const isActive = String(t.status) === "active" && t.stopped_at == null && endAt > now;
 
     if (action === "stop") {
-      if (!isActive) return jsonError("Dieser Parkschein ist nicht mehr aktiv.", 409);
+      if (!isActive) return jsonError("Dieser Parkschein ist nicht mehr aktiv.", 409, "not_active");
       // fair billing: pay only for the minutes actually used (min. 15)
       const usedMin = Math.max(15, Math.ceil((now - startAt) / 60_000));
       const newPrice = Math.min(Number(t.price_cents), Math.round((priceHour * usedMin) / 60));
@@ -35,7 +35,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
         args: [now, now, newPrice, id],
       });
     } else if (action === "extend") {
-      if (!isActive) return jsonError("Dieser Parkschein ist nicht mehr aktiv.", 409);
+      if (!isActive) return jsonError("Dieser Parkschein ist nicht mehr aktiv.", 409, "not_active");
       const minutes = Math.round(Number(body.minutes));
       if (!isFinite(minutes) || minutes < 15 || minutes > 720) return jsonError("Ungültige Verlängerung.");
       const totalMin = Math.round((endAt + minutes * 60_000 - startAt) / 60_000);

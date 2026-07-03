@@ -7,6 +7,7 @@ import {
   type PaymentMethod, type Ticket, type User, type Vehicle,
 } from "./types";
 import { PaymentMethodAdd, PaymentMethodList } from "./PaymentMethods";
+import { LANG_FLAGS, LANG_NAMES, useI18n, type Lang } from "./i18n";
 
 type Props = {
   user: User | null;
@@ -14,6 +15,8 @@ type Props = {
   tickets: Ticket[];
   paymentMethods: PaymentMethod[];
   geoOk: boolean;
+  dark: boolean;
+  onToggleDark: () => void;
   onRequestLocation: () => void;
   onVehiclesChanged: () => void;
   onPaymentsChanged: () => void;
@@ -44,10 +47,11 @@ function remaining(endAt: number, now: number): string {
 
 export default function SideDrawer(props: Props) {
   const {
-    user, vehicles, tickets, paymentMethods, geoOk,
+    user, vehicles, tickets, paymentMethods, geoOk, dark, onToggleDark,
     onRequestLocation, onVehiclesChanged, onPaymentsChanged, onTicketsChanged,
     onLoginClick, onLogout, onClose,
   } = props;
+  const { t, terr, lang, setLang, locale } = useI18n();
 
   const [open, setOpen] = useState(false);
   const [now, setNow] = useState(() => Date.now());
@@ -55,14 +59,13 @@ export default function SideDrawer(props: Props) {
   const [addingPayment, setAddingPayment] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // slide-in on mount, slide-out on close
   useEffect(() => {
-    const t = requestAnimationFrame(() => setOpen(true));
-    return () => cancelAnimationFrame(t);
+    const raf = requestAnimationFrame(() => setOpen(true));
+    return () => cancelAnimationFrame(raf);
   }, []);
   useEffect(() => {
-    const t = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => window.clearInterval(t);
+    const id = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(id);
   }, []);
 
   function close() {
@@ -70,8 +73,8 @@ export default function SideDrawer(props: Props) {
     window.setTimeout(onClose, 220);
   }
 
-  const active = tickets.filter((t) => t.status === "active" && t.stoppedAt == null && t.endAt > now);
-  const history = tickets.filter((t) => !active.includes(t)).slice(0, 5);
+  const active = tickets.filter((tk) => tk.status === "active" && tk.stoppedAt == null && tk.endAt > now);
+  const history = tickets.filter((tk) => !active.includes(tk)).slice(0, 5);
 
   async function addVehicle(e: React.FormEvent) {
     e.preventDefault();
@@ -81,7 +84,7 @@ export default function SideDrawer(props: Props) {
       setNewPlate("");
       onVehiclesChanged();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Fehler");
+      setError(terr(err));
     }
   }
 
@@ -91,7 +94,7 @@ export default function SideDrawer(props: Props) {
       await api(`/api/vehicles?id=${id}`, { method: "DELETE" });
       onVehiclesChanged();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Fehler");
+      setError(terr(err));
     }
   }
 
@@ -128,44 +131,44 @@ export default function SideDrawer(props: Props) {
               {user ? user.name[0]?.toUpperCase() : "👤"}
             </span>
             <div className="leading-tight">
-              <div className="text-sm font-bold text-slate-900">{user ? user.name : "Gast"}</div>
-              <div className="text-xs text-slate-500">{user ? user.email : "Nicht angemeldet"}</div>
+              <div className="text-sm font-bold text-slate-900">{user ? user.name : t("drawer.guest")}</div>
+              <div className="text-xs text-slate-500">{user ? user.email : t("drawer.notLoggedIn")}</div>
             </div>
           </div>
-          <button onClick={close} aria-label="Schließen" className="rounded-full bg-slate-100 px-2.5 py-1 text-sm text-slate-500 active:scale-95">
+          <button onClick={close} aria-label={t("drawer.close")} className="rounded-full bg-slate-100 px-2.5 py-1 text-sm text-slate-500 active:scale-95">
             ✕
           </button>
         </div>
 
         <div className="flex-1 overflow-y-auto pb-[max(1rem,var(--safe-bottom))]">
           {!user && (
-            <Section title="Konto">
+            <Section title={t("drawer.account")}>
               <button
                 onClick={onLoginClick}
                 className="w-full rounded-xl bg-blue-700 py-3 text-sm font-bold text-white active:scale-[0.98]"
               >
-                Anmelden / Registrieren
+                {t("drawer.loginRegister")}
               </button>
             </Section>
           )}
 
           {user && (
             <>
-              <Section title="Aktive Parkscheine">
-                {active.length === 0 && <p className="text-sm text-slate-500">Kein aktiver Parkschein.</p>}
+              <Section title={t("drawer.activeTickets")}>
+                {active.length === 0 && <p className="text-sm text-slate-500">{t("drawer.noActive")}</p>}
                 <div className="space-y-2">
-                  {active.map((t) => (
-                    <div key={t.id} className="rounded-xl bg-emerald-600 p-3 text-white">
+                  {active.map((tk) => (
+                    <div key={tk.id} className="rounded-xl bg-emerald-600 p-3 text-white">
                       <div className="flex items-center justify-between text-xs text-emerald-100">
-                        <span className="truncate">{t.plate} · {t.zoneName}</span>
+                        <span className="truncate">{tk.plate} · {tk.zoneName}</span>
                       </div>
                       <div className="mt-0.5 flex items-center justify-between">
-                        <span className="text-xl font-extrabold tabular-nums">{remaining(t.endAt, now)}</span>
+                        <span className="text-xl font-extrabold tabular-nums">{remaining(tk.endAt, now)}</span>
                         <button
-                          onClick={() => stopTicket(t.id)}
+                          onClick={() => stopTicket(tk.id)}
                           className="rounded-lg bg-white px-3 py-1.5 text-xs font-bold text-emerald-700 active:scale-95"
                         >
-                          Stoppen ({euro(t.priceCents)})
+                          {t("ticket.stop", { p: euro(tk.priceCents) })}
                         </button>
                       </div>
                     </div>
@@ -173,13 +176,13 @@ export default function SideDrawer(props: Props) {
                 </div>
               </Section>
 
-              <Section title="Fahrzeuge & Kennzeichen">
+              <Section title={t("drawer.vehicles")}>
                 <div className="space-y-2">
                   {vehicles.map((v) => (
                     <div key={v.id} className="flex items-center gap-2.5 rounded-xl bg-white p-2.5 ring-1 ring-slate-200">
                       <span className="rounded-md border border-slate-400 px-2 py-0.5 font-mono text-sm font-bold tracking-widest">{v.plate}</span>
                       <span className="min-w-0 flex-1 truncate text-xs text-slate-500">{v.label ?? ""}</span>
-                      <button onClick={() => removeVehicle(v.id)} aria-label={`${v.plate} löschen`} className="text-sm text-red-500">🗑</button>
+                      <button onClick={() => removeVehicle(v.id)} aria-label={t("drawer.delete")} className="text-sm text-red-500">🗑</button>
                     </div>
                   ))}
                 </div>
@@ -187,7 +190,7 @@ export default function SideDrawer(props: Props) {
                   <input
                     value={newPlate}
                     onChange={(e) => setNewPlate(e.target.value.toUpperCase())}
-                    placeholder="Kennzeichen"
+                    placeholder={t("drawer.plate")}
                     maxLength={12}
                     required
                     className="min-w-0 flex-1 rounded-xl border border-slate-300 px-3 py-2.5 text-center font-mono text-sm font-bold uppercase tracking-widest outline-none focus:border-blue-600"
@@ -196,7 +199,7 @@ export default function SideDrawer(props: Props) {
                 </form>
               </Section>
 
-              <Section title="Zahlungsmethoden">
+              <Section title={t("drawer.payments")}>
                 <PaymentMethodList methods={paymentMethods} onChanged={onPaymentsChanged} />
                 {addingPayment ? (
                   <div className="mt-2">
@@ -207,24 +210,24 @@ export default function SideDrawer(props: Props) {
                   </div>
                 ) : (
                   <button onClick={() => setAddingPayment(true)} className="mt-2 text-sm font-semibold text-blue-700">
-                    + Zahlungsmethode hinzufügen
+                    {t("drawer.addPayment")}
                   </button>
                 )}
               </Section>
 
-              <Section title="Verlauf">
-                {history.length === 0 && <p className="text-sm text-slate-500">Noch keine Parkscheine.</p>}
+              <Section title={t("drawer.history")}>
+                {history.length === 0 && <p className="text-sm text-slate-500">{t("drawer.noTickets")}</p>}
                 <div className="space-y-2">
-                  {history.map((t) => (
-                    <div key={t.id} className="rounded-xl bg-slate-50 p-2.5 ring-1 ring-slate-200">
+                  {history.map((tk) => (
+                    <div key={tk.id} className="rounded-xl bg-slate-50 p-2.5 ring-1 ring-slate-200">
                       <div className="flex items-center justify-between gap-2 text-sm">
-                        <span className="min-w-0 truncate font-semibold text-slate-800">{t.zoneName}</span>
-                        <span className="shrink-0 font-bold text-slate-900">{euro(t.priceCents)}</span>
+                        <span className="min-w-0 truncate font-semibold text-slate-800">{tk.zoneName}</span>
+                        <span className="shrink-0 font-bold text-slate-900">{euro(tk.priceCents)}</span>
                       </div>
                       <div className="mt-0.5 text-[11px] text-slate-500">
-                        {t.plate} · {new Date(t.startAt).toLocaleString("de-AT", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
-                        {" · "}{fmtDuration(Math.max(1, Math.round((t.endAt - t.startAt) / 60_000)))}
-                        {t.paymentLabel ? ` · ${t.paymentLabel}` : ""}
+                        {tk.plate} · {new Date(tk.startAt).toLocaleString(locale, { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                        {" · "}{fmtDuration(Math.max(1, Math.round((tk.endAt - tk.startAt) / 60_000)))}
+                        {tk.paymentLabel ? ` · ${tk.paymentLabel}` : ""}
                       </div>
                     </div>
                   ))}
@@ -233,24 +236,60 @@ export default function SideDrawer(props: Props) {
             </>
           )}
 
-          <Section title="Standort">
+          <Section title={t("drawer.language")}>
+            <div className="grid grid-cols-3 gap-2">
+              {(["de", "it", "en"] as Lang[]).map((l) => (
+                <button
+                  key={l}
+                  onClick={() => setLang(l)}
+                  className={`rounded-xl border-2 px-2 py-2 text-xs font-bold transition ${
+                    lang === l ? "border-blue-600 bg-blue-50 text-blue-700" : "border-slate-200 bg-white text-slate-600"
+                  }`}
+                >
+                  {LANG_FLAGS[l]} {LANG_NAMES[l]}
+                </button>
+              ))}
+            </div>
+          </Section>
+
+          <Section title={t("drawer.appearance")}>
+            <button
+              onClick={onToggleDark}
+              role="switch"
+              aria-checked={dark}
+              className="flex w-full items-center justify-between rounded-xl bg-slate-50 px-3 py-2.5 ring-1 ring-slate-200 active:scale-[0.99]"
+            >
+              <span className="text-sm font-semibold text-slate-700">
+                {dark ? t("drawer.dark") : t("drawer.light")}
+              </span>
+              <span
+                className={`relative h-6 w-11 rounded-full transition-colors ${dark ? "bg-blue-700" : "bg-slate-300"}`}
+              >
+                <span
+                  className={`absolute left-0 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${dark ? "translate-x-[22px]" : "translate-x-0.5"}`}
+                />
+              </span>
+            </button>
+          </Section>
+
+          <Section title={t("drawer.location")}>
             <div className="flex items-center gap-2.5">
               <span className={`h-2.5 w-2.5 rounded-full ${geoOk ? "bg-emerald-500" : "bg-red-400"}`} />
               <span className="flex-1 text-sm text-slate-600">
-                {geoOk ? "Ortung aktiv – du wirst auf der Karte angezeigt." : "Ortung ist deaktiviert."}
+                {geoOk ? t("drawer.locOn") : t("drawer.locOff")}
               </span>
               {!geoOk && (
                 <button
                   onClick={onRequestLocation}
                   className="rounded-xl bg-blue-700 px-3 py-2 text-xs font-bold text-white active:scale-95"
                 >
-                  Aktivieren
+                  {t("drawer.activate")}
                 </button>
               )}
             </div>
           </Section>
 
-          <Section title="Rechtliches / Legale">
+          <Section title={t("drawer.legal")}>
             <div className="space-y-1.5">
               {legalLinks.map((l) => (
                 <Link
@@ -267,21 +306,19 @@ export default function SideDrawer(props: Props) {
           </Section>
 
           {user && (
-            <Section title="Konto">
+            <Section title={t("drawer.account")}>
               <button
                 onClick={logout}
                 className="w-full rounded-xl bg-slate-100 py-3 text-sm font-bold text-slate-700 ring-1 ring-slate-200 active:scale-[0.98]"
               >
-                Abmelden
+                {t("drawer.logout")}
               </button>
             </Section>
           )}
 
           {error && <p className="mx-5 my-3 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
 
-          <p className="px-5 py-4 text-center text-[11px] text-slate-400">
-            ParkPilot · PWA – über das Browser-Menü „Zum Startbildschirm hinzufügen“ installieren 📲
-          </p>
+          <p className="px-5 py-4 text-center text-[11px] text-slate-400">{t("drawer.install")}</p>
         </div>
       </aside>
     </div>

@@ -71,12 +71,12 @@ export async function POST(req: NextRequest) {
       priceHourCents?: number | null; maxStayMinutes?: number | null;
     } | undefined;
 
-    if (!zone?.id || !zone?.name) return jsonError("Keine Parkzone ausgewählt.");
-    if (!vehicleId) return jsonError("Ein Fahrzeug mit Kennzeichen ist für den Kauf erforderlich.");
-    if (!paymentMethodId) return jsonError("Bitte wähle eine Zahlungsmethode.");
-    if (!isFinite(minutes) || minutes < 15 || minutes > 1440) return jsonError("Parkdauer muss zwischen 15 Minuten und 24 Stunden liegen.");
+    if (!zone?.id || !zone?.name) return jsonError("Keine Parkzone ausgewählt.", 400, "no_zone");
+    if (!vehicleId) return jsonError("Ein Fahrzeug mit Kennzeichen ist für den Kauf erforderlich.", 400, "plate_required");
+    if (!paymentMethodId) return jsonError("Bitte wähle eine Zahlungsmethode.", 400, "payment_required");
+    if (!isFinite(minutes) || minutes < 15 || minutes > 1440) return jsonError("Parkdauer muss zwischen 15 Minuten und 24 Stunden liegen.", 400, "invalid_duration");
     if (zone.maxStayMinutes != null && minutes > zone.maxStayMinutes) {
-      return jsonError(`In dieser Zone sind maximal ${zone.maxStayMinutes} Minuten erlaubt.`);
+      return jsonError(`In dieser Zone sind maximal ${zone.maxStayMinutes} Minuten erlaubt.`, 400, "maxstay", { m: zone.maxStayMinutes });
     }
 
     const c = await db();
@@ -85,14 +85,14 @@ export async function POST(req: NextRequest) {
       args: [vehicleId, user.id],
     });
     const vrow = veh.rows[0];
-    if (!vrow) return jsonError("Fahrzeug nicht gefunden – bitte Kennzeichen anlegen.", 404);
+    if (!vrow) return jsonError("Fahrzeug nicht gefunden – bitte Kennzeichen anlegen.", 404, "vehicle_not_found");
 
     const pm = await c.execute({
       sql: "SELECT * FROM payment_methods WHERE id = ? AND user_id = ?",
       args: [paymentMethodId, user.id],
     });
     const pmRow = pm.rows[0];
-    if (!pmRow) return jsonError("Zahlungsmethode nicht gefunden – bitte eine hinzufügen.", 404);
+    if (!pmRow) return jsonError("Zahlungsmethode nicht gefunden – bitte eine hinzufügen.", 404, "payment_not_found");
     const payLabel = paymentLabel(mapPaymentRow(pmRow as unknown as Record<string, unknown>));
 
     const activeForVehicle = await c.execute({
@@ -100,7 +100,7 @@ export async function POST(req: NextRequest) {
       args: [user.id, vehicleId, Date.now()],
     });
     if (activeForVehicle.rows.length > 0) {
-      return jsonError("Für dieses Kennzeichen läuft bereits ein Parkschein.", 409);
+      return jsonError("Für dieses Kennzeichen läuft bereits ein Parkschein.", 409, "plate_ticket_exists");
     }
 
     const priceHourCents = Math.max(0, Math.round(Number(zone.priceHourCents ?? 0)));

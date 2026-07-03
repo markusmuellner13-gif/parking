@@ -25,18 +25,30 @@ type OsmElement = {
 
 function cacheKey(lat: number, lng: number, radiusM: number): string {
   // ~1.1 km snapping grid so nearby requests share a cache entry
-  // (v2: bumped when the query switched to `out geom`)
-  return `ovp2:${Math.round(lat * 100)}:${Math.round(lng * 100)}:${radiusM}`;
+  // (v3: bumped when paid-street ways were added to the query)
+  return `ovp3:${Math.round(lat * 100)}:${Math.round(lng * 100)}:${radiusM}`;
 }
 
 async function fetchOverpass(lat: number, lng: number, radiusM: number): Promise<OsmElement[]> {
-  const query = `[out:json][timeout:14];
+  const around = `(around:${radiusM},${lat},${lng})`;
+  // parking places + ticket machines, then streets tagged with paid parking
+  // (both the modern parking:*:fee scheme and the older parking:condition scheme)
+  const query = `[out:json][timeout:20];
 (
-  node["amenity"="parking"](around:${radiusM},${lat},${lng});
-  way["amenity"="parking"](around:${radiusM},${lat},${lng});
-  node["vending"="parking_tickets"](around:${radiusM},${lat},${lng});
+  node["amenity"="parking"]${around};
+  way["amenity"="parking"]${around};
+  node["vending"="parking_tickets"]${around};
 );
-out geom 80;`;
+out geom 80;
+(
+  way["highway"]["parking:condition:both"~"ticket|disc"]${around};
+  way["highway"]["parking:condition:left"~"ticket|disc"]${around};
+  way["highway"]["parking:condition:right"~"ticket|disc"]${around};
+  way["highway"]["parking:both:fee"~"yes"]${around};
+  way["highway"]["parking:left:fee"~"yes"]${around};
+  way["highway"]["parking:right:fee"~"yes"]${around};
+);
+out geom 350;`;
 
   for (const endpoint of OVERPASS_ENDPOINTS) {
     try {
@@ -71,15 +83,8 @@ function kindOf(tags: Record<string, string>): ZoneKind {
   return "surface";
 }
 
-function nameOf(tags: Record<string, string>, kind: ZoneKind): string {
-  if (tags.name) return tags.name;
-  if (tags.vending === "parking_tickets") return "Straßenparken (Parkscheinautomat)";
-  switch (kind) {
-    case "garage": return "Parkhaus";
-    case "underground": return "Tiefgarage";
-    case "street": return "Straßenparken";
-    default: return "Parkplatz";
-  }
+function isPaidStreetWay(el: OsmElement): boolean {
+  return el.type === "way" && el.tags?.highway != null;
 }
 
 const DEFAULT_HOURLY: Record<ZoneKind, number> = {
@@ -134,24 +139,27 @@ function toZone(el: OsmElement, userLat: number, userLng: number): Zone | null {
   return {
     id: `osm-${el.type}-${el.id}`,
     source: "osm",
-    name: nameOf(tags, kind),
+    name: tags.name ?? "",
     kind,
     lat,
     lng,
     priceHourCents,
     currency: "EUR",
     maxStayMinutes: parseMaxStayMinutes(tags.maxstay),
-    hours: tags.opening_hours ?? "24/7 (unbestätigt)",
+    hours: tags.opening_hours ?? "",
     capacity: tags.capacity ? parseInt(tags.capacity, 10) || null : null,
     operator: tags.operator ?? null,
     estimated,
     distanceM: haversineM(userLat, userLng, lat, lng),
     areaRadiusM: null,
     polygon,
+    generic: tags.name ? null : isTicketMachine ? "ticket_machine" : kind,
   };
 }
 
-export async function osmZonesNear(lat: number, lng: number, radiusM: number): Promise<Zone[]> {
+export type OsmResult = { zones: Zone[]; paidStreets: [number, number][][] };
+
+export async function osmZonesNear(lat: number, lng: number, radiusM: number): Promise<OsmResult> {
   const key = cacheKey(lat, lng, radiusM);
   let elements: OsmElement[] | null = null;
 
@@ -185,8 +193,18 @@ export async function osmZonesNear(lat: number, lng: number, radiusM: number): P
   }
 
   const zones = elements
+    .filter((el) => !isPaidStreetWay(el))
     .map((el) => toZone(el, lat, lng))
     .filter((z): z is Zone => z !== null);
   zones.sort((a, b) => a.distanceM - b.distanceM);
-  return zones.slice(0, 60);
+
+  // streets with paid parking, drawn as highlighted polylines on the map
+  const paidStreets: [number, number][][] = [];
+  for (const el of elements) {
+    if (!isPaidStreetWay(el) || !el.geometry || el.geometry.length < 2) continue;
+    paidStreets.push(simplify(el.geometry, 24));
+    if (paidStreets.length >= 350) break;
+  }
+
+  return { zones: zones.slice(0, 60), paidStreets };
 }

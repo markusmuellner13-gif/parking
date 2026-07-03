@@ -10,13 +10,13 @@ export async function POST(req: NextRequest) {
     const name = String(body.name ?? "").trim();
     const password = String(body.password ?? "");
 
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return jsonError("Bitte gib eine gültige E-Mail-Adresse an.");
-    if (name.length < 2) return jsonError("Bitte gib deinen Namen an.");
-    if (password.length < 8) return jsonError("Das Passwort braucht mindestens 8 Zeichen.");
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return jsonError("Bitte gib eine gültige E-Mail-Adresse an.", 400, "invalid_email");
+    if (name.length < 2) return jsonError("Bitte gib deinen Namen an.", 400, "name_short");
+    if (password.length < 8) return jsonError("Das Passwort braucht mindestens 8 Zeichen.", 400, "password_short");
 
     const c = await db();
     const existing = await c.execute({ sql: "SELECT id FROM users WHERE email = ?", args: [email] });
-    if (existing.rows.length > 0) return jsonError("Für diese E-Mail existiert bereits ein Konto.", 409);
+    if (existing.rows.length > 0) return jsonError("Für diese E-Mail existiert bereits ein Konto.", 409, "email_exists");
 
     const id = newId();
     await c.execute({

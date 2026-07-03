@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { api, euro, type Ticket } from "./types";
+import { useI18n } from "./i18n";
 
 function remaining(t: Ticket, now: number): string {
   const ms = Math.max(0, t.endAt - now);
@@ -16,6 +17,7 @@ function remaining(t: Ticket, now: number): string {
 export default function ActiveTicketBar({
   tickets, onChanged, floating,
 }: { tickets: Ticket[]; onChanged: () => void; floating?: boolean }) {
+  const { t } = useI18n();
   const [now, setNow] = useState(() => Date.now());
   const [busyId, setBusyId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -48,38 +50,38 @@ export default function ActiveTicketBar({
 
   return (
     <div className={floating ? "mt-2 space-y-2" : "space-y-2 border-b border-slate-200 p-3"}>
-      {tickets.map((t) => {
-        const expanded = expandedId === t.id;
+      {tickets.map((tk) => {
+        const expanded = expandedId === tk.id;
         return (
-          <div key={t.id} className={`overflow-hidden rounded-2xl bg-emerald-600 text-white shadow-lg ${floating ? "ring-1 ring-emerald-700/40" : ""}`}>
-            <button className="flex w-full items-center gap-3 px-4 py-2.5 text-left" onClick={() => setExpandedId(expanded ? null : t.id)}>
+          <div key={tk.id} className={`overflow-hidden rounded-2xl bg-emerald-600 text-white shadow-lg ${floating ? "ring-1 ring-emerald-700/40" : ""}`}>
+            <button className="flex w-full items-center gap-3 px-4 py-2.5 text-left" onClick={() => setExpandedId(expanded ? null : tk.id)}>
               <span className="relative flex h-2.5 w-2.5">
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white opacity-60" />
                 <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-white" />
               </span>
               <div className="min-w-0 flex-1 leading-tight">
                 <div className="truncate text-xs font-medium text-emerald-100">
-                  {t.plate} · {t.zoneName}
+                  {tk.plate} · {tk.zoneName}
                 </div>
-                <div className="text-lg font-extrabold tabular-nums">{remaining(t, now)}</div>
+                <div className="text-lg font-extrabold tabular-nums">{remaining(tk, now)}</div>
               </div>
               <span className="text-emerald-100">{expanded ? "▴" : "▾"}</span>
             </button>
             {expanded && (
               <div className="flex gap-2 px-4 pb-3">
                 <button
-                  onClick={() => act(t, "extend")}
-                  disabled={busyId === t.id}
+                  onClick={() => act(tk, "extend")}
+                  disabled={busyId === tk.id}
                   className="flex-1 rounded-xl bg-white/20 py-2 text-xs font-bold active:scale-95 disabled:opacity-50"
                 >
-                  +30 min
+                  {t("ticket.extend")}
                 </button>
                 <button
-                  onClick={() => act(t, "stop")}
-                  disabled={busyId === t.id}
+                  onClick={() => act(tk, "stop")}
+                  disabled={busyId === tk.id}
                   className="flex-1 rounded-xl bg-white py-2 text-xs font-bold text-emerald-700 active:scale-95 disabled:opacity-50"
                 >
-                  Stoppen ({euro(t.priceCents)})
+                  {t("ticket.stop", { p: euro(tk.priceCents) })}
                 </button>
               </div>
             )}
