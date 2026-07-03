@@ -15,6 +15,10 @@ export type Zone = {
   operator: string | null;
   estimated: boolean;
   distanceM: number;
+  /** visual extent on the map: circle radius for tariff zones … */
+  areaRadiusM: number | null;
+  /** … or real outline for OSM parking areas */
+  polygon: [number, number][] | null;
 };
 
 export function haversineM(lat1: number, lng1: number, lat2: number, lng2: number): number {
@@ -63,6 +67,20 @@ const CITY_ZONES: CityZone[] = [
   // Innsbruck: € 1,10 / 30 min, Altstadt max 90 min (seit 2025-04-22)
   { id: "at-innsbruck-kpz", name: "Kurzparkzone Innsbruck – Altstadt", lat: 47.2654, lng: 11.3928, priceHourCents: 220, maxStayMinutes: 90, hours: "Mo–Sa 09:00–19:00", radiusM: 1200, verified: true },
   { id: "at-innsbruck-180", name: "Kurzparkzone Innsbruck – erweitertes Zentrum", lat: 47.2610, lng: 11.4010, priceHourCents: 220, maxStayMinutes: 180, hours: "Mo–Sa 09:00–19:00", radiusM: 2000, verified: true },
+  // Baden bei Wien: € 1,00 / 30 min (baden.at), max 2 h
+  { id: "at-baden-blau", name: "Blaue Zone Baden bei Wien – Zentrum", lat: 48.0075, lng: 16.2344, priceHourCents: 200, maxStayMinutes: 120, hours: "Mo–Fr 08:00–12:00 & 13:30–18:00, Sa 08:00–12:00", radiusM: 1000, verified: true },
+  // weitere Landeshauptstädte & Kleinstädte (Richtwerte)
+  { id: "at-stpoelten-kpz", name: "Kurzparkzone St. Pölten – Zentrum", lat: 48.2036, lng: 15.6267, priceHourCents: 200, maxStayMinutes: 180, hours: "Mo–Fr 08:00–18:00, Sa 08:00–12:00", radiusM: 1200 },
+  { id: "at-wrneustadt-kpz", name: "Kurzparkzone Wiener Neustadt – Zentrum", lat: 47.8139, lng: 16.2434, priceHourCents: 150, maxStayMinutes: 180, hours: "Mo–Fr 08:00–18:00, Sa 08:00–12:00", radiusM: 1100 },
+  { id: "at-klagenfurt-kpz", name: "Kurzparkzone Klagenfurt – Zentrum", lat: 46.6247, lng: 14.3050, priceHourCents: 220, maxStayMinutes: 180, hours: "Mo–Fr 08:00–18:00, Sa 08:00–13:00", radiusM: 1300 },
+  { id: "at-villach-kpz", name: "Kurzparkzone Villach – Zentrum", lat: 46.6111, lng: 13.8558, priceHourCents: 150, maxStayMinutes: 180, hours: "Mo–Fr 08:00–18:00, Sa 08:00–12:00", radiusM: 1000 },
+  { id: "at-wels-kpz", name: "Kurzparkzone Wels – Zentrum", lat: 48.1575, lng: 14.0289, priceHourCents: 150, maxStayMinutes: 180, hours: "Mo–Fr 08:00–18:00, Sa 08:00–12:00", radiusM: 1000 },
+  { id: "at-steyr-kpz", name: "Kurzparkzone Steyr – Zentrum", lat: 48.0421, lng: 14.4213, priceHourCents: 140, maxStayMinutes: 180, hours: "Mo–Fr 08:00–18:00, Sa 08:00–12:00", radiusM: 900 },
+  { id: "at-bregenz-kpz", name: "Kurzparkzone Bregenz – Zentrum", lat: 47.5031, lng: 9.7471, priceHourCents: 190, maxStayMinutes: 180, hours: "Mo–Fr 08:00–18:00, Sa 08:00–12:00", radiusM: 1000 },
+  { id: "at-dornbirn-kpz", name: "Kurzparkzone Dornbirn – Zentrum", lat: 47.4125, lng: 9.7417, priceHourCents: 160, maxStayMinutes: 180, hours: "Mo–Fr 08:00–18:00, Sa 08:00–12:00", radiusM: 1000 },
+  { id: "at-eisenstadt-kpz", name: "Kurzparkzone Eisenstadt – Zentrum", lat: 47.8456, lng: 16.5253, priceHourCents: 130, maxStayMinutes: 180, hours: "Mo–Fr 08:00–18:00, Sa 08:00–12:00", radiusM: 900 },
+  { id: "at-krems-kpz", name: "Kurzparkzone Krems – Zentrum", lat: 48.4102, lng: 15.6144, priceHourCents: 160, maxStayMinutes: 180, hours: "Mo–Fr 08:00–18:00, Sa 08:00–12:00", radiusM: 1000 },
+  { id: "at-moedling-kpz", name: "Kurzparkzone Mödling – Zentrum", lat: 48.0856, lng: 16.2831, priceHourCents: 200, maxStayMinutes: 180, hours: "Mo–Fr 08:00–18:00, Sa 08:00–12:00", radiusM: 900 },
 ];
 
 export function cityZonesNear(lat: number, lng: number, radiusM: number): Zone[] {
@@ -86,6 +104,8 @@ export function cityZonesNear(lat: number, lng: number, radiusM: number): Zone[]
         operator: "Stadt / Gemeinde",
         estimated: !z.verified,
         distanceM: inside ? 0 : d - z.radiusM,
+        areaRadiusM: z.radiusM,
+        polygon: null,
       },
     ];
   });

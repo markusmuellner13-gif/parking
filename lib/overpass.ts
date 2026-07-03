@@ -19,12 +19,14 @@ type OsmElement = {
   lat?: number;
   lon?: number;
   center?: { lat: number; lon: number };
+  geometry?: { lat: number; lon: number }[];
   tags?: Record<string, string>;
 };
 
 function cacheKey(lat: number, lng: number, radiusM: number): string {
   // ~1.1 km snapping grid so nearby requests share a cache entry
-  return `ovp:${Math.round(lat * 100)}:${Math.round(lng * 100)}:${radiusM}`;
+  // (v2: bumped when the query switched to `out geom`)
+  return `ovp2:${Math.round(lat * 100)}:${Math.round(lng * 100)}:${radiusM}`;
 }
 
 async function fetchOverpass(lat: number, lng: number, radiusM: number): Promise<OsmElement[]> {
@@ -34,7 +36,7 @@ async function fetchOverpass(lat: number, lng: number, radiusM: number): Promise
   way["amenity"="parking"](around:${radiusM},${lat},${lng});
   node["vending"="parking_tickets"](around:${radiusM},${lat},${lng});
 );
-out center 80;`;
+out geom 80;`;
 
   for (const endpoint of OVERPASS_ENDPOINTS) {
     try {
@@ -87,9 +89,25 @@ const DEFAULT_HOURLY: Record<ZoneKind, number> = {
   underground: 280,
 };
 
+/** Downsample a way outline to at most `max` points to keep responses small. */
+function simplify(points: { lat: number; lon: number }[], max = 32): [number, number][] {
+  const step = Math.max(1, Math.ceil(points.length / max));
+  const out: [number, number][] = [];
+  for (let i = 0; i < points.length; i += step) out.push([points[i].lat, points[i].lon]);
+  return out;
+}
+
 function toZone(el: OsmElement, userLat: number, userLng: number): Zone | null {
-  const lat = el.lat ?? el.center?.lat;
-  const lng = el.lon ?? el.center?.lon;
+  let lat = el.lat ?? el.center?.lat;
+  let lng = el.lon ?? el.center?.lon;
+  let polygon: [number, number][] | null = null;
+  if (el.geometry && el.geometry.length >= 3) {
+    polygon = simplify(el.geometry);
+    if (lat == null || lng == null) {
+      lat = polygon.reduce((s, p) => s + p[0], 0) / polygon.length;
+      lng = polygon.reduce((s, p) => s + p[1], 0) / polygon.length;
+    }
+  }
   if (lat == null || lng == null) return null;
   const tags = el.tags ?? {};
   if (tags.access === "private" || tags.access === "no") return null;
@@ -128,6 +146,8 @@ function toZone(el: OsmElement, userLat: number, userLng: number): Zone | null {
     operator: tags.operator ?? null,
     estimated,
     distanceM: haversineM(userLat, userLng, lat, lng),
+    areaRadiusM: null,
+    polygon,
   };
 }
 

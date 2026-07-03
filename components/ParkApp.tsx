@@ -245,7 +245,14 @@ export default function ParkApp() {
               <ZoneDetail zone={selected} onBack={() => selectZone(null)} onPark={startParking} compact />
             </div>
           ) : (
-            <MobileZoneCards zones={zones} loading={zonesLoading} onSelect={(z) => selectZone(z, true)} />
+            <>
+              {geoStatus === "denied" && (
+                <p className="mx-3 mb-2 rounded-xl bg-white/95 px-3 py-2 text-center text-[11px] text-blue-900 shadow ring-1 ring-blue-200">
+                  📍 Standort nicht freigegeben – erlaube die Ortung in den Browser-Einstellungen, damit ParkPilot dich auf der Karte zeigt.
+                </p>
+              )}
+              <MobileZoneCards zones={zones} loading={zonesLoading} onSelect={(z) => selectZone(z, true)} />
+            </>
           )}
         </div>
       </main>

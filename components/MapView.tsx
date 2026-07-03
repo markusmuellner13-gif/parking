@@ -69,11 +69,40 @@ export default function MapView({ center, userPos, zones, selectedId, onSelect, 
     }
   }, [userPos]);
 
-  // zone markers
+  // zone areas (highlighted like EasyPark) + markers
   useEffect(() => {
     const layer = zoneLayerRef.current;
     if (!layer) return;
     layer.clearLayers();
+
+    // 1) translucent zone areas underneath, so the map stays readable
+    for (const zone of zones) {
+      const selected = zone.id === selectedId;
+      const color = zoneColor(zone);
+      const style: L.PathOptions = {
+        color,
+        weight: selected ? 2.5 : 1.5,
+        opacity: selected ? 0.9 : 0.55,
+        fillColor: color,
+        fillOpacity: selected ? 0.3 : zone.source === "city" ? 0.1 : 0.2,
+        dashArray: zone.source === "city" ? "6 6" : undefined,
+      };
+      let area: L.Path | null = null;
+      if (zone.polygon && zone.polygon.length >= 3) {
+        area = L.polygon(zone.polygon, style);
+      } else if (zone.areaRadiusM) {
+        area = L.circle([zone.lat, zone.lng], { radius: zone.areaRadiusM, ...style });
+      }
+      if (area) {
+        area.on("click", (e) => {
+          L.DomEvent.stopPropagation(e);
+          callbacksRef.current.onSelect(zone);
+        });
+        layer.addLayer(area);
+      }
+    }
+
+    // 2) markers on top
     for (const zone of zones) {
       const selected = zone.id === selectedId;
       const color = zoneColor(zone);

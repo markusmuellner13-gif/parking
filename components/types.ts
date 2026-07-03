@@ -15,6 +15,8 @@ export type Zone = {
   operator: string | null;
   estimated: boolean;
   distanceM: number;
+  areaRadiusM: number | null;
+  polygon: [number, number][] | null;
 };
 
 export type User = { id: string; email: string; name: string };
