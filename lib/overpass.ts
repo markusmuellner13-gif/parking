@@ -34,7 +34,7 @@ async function fetchOverpass(lat: number, lng: number, radiusM: number): Promise
   way["amenity"="parking"](around:${radiusM},${lat},${lng});
   node["vending"="parking_tickets"](around:${radiusM},${lat},${lng});
 );
-out center tags 80;`;
+out center 80;`;
 
   for (const endpoint of OVERPASS_ENDPOINTS) {
     try {
@@ -42,7 +42,11 @@ out center tags 80;`;
       const timer = setTimeout(() => controller.abort(), 15000);
       const res = await fetch(endpoint, {
         method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          // Overpass usage policy requires an identifying User-Agent; anonymous requests get 403
+          "User-Agent": "ParkPilot/1.0 (parking zone finder PWA; https://parking-rosy-sigma.vercel.app)",
+        },
         body: `data=${encodeURIComponent(query)}`,
         signal: controller.signal,
       });
