@@ -447,7 +447,7 @@ function ZoneDetail({
         <div className="min-w-0 flex-1">
           <h3 className="text-base font-bold leading-snug text-slate-900">{zone.name}</h3>
           <p className="text-xs text-slate-500">
-            {kindLabel(zone.kind)} · {fmtDistance(zone.distanceM)} entfernt
+            {kindLabel(zone.kind)} · {zone.distanceM < 25 ? "direkt bei dir" : `${fmtDistance(zone.distanceM)} entfernt`}
             {zone.operator ? ` · ${zone.operator}` : ""}
           </p>
         </div>
