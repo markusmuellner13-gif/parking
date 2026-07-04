@@ -128,5 +128,7 @@ body {
 .dark .border-slate-200 { border-color: #334155; }
 .dark .border-slate-300 { border-color: #475569; }
 .dark .border-slate-400 { border-color: #64748b; }
-.dark .leaflet-container { background: #0b1220; }
+.dark .leaflet-container { background: #1a2436; }
+/* CARTO dark tiles are very dark – lift them so streets stay readable */
+.dark .leaflet-tile { filter: brightness(1.65) contrast(0.88) saturate(1.1); }
 .dark .pp-marker { border-color: rgba(15, 23, 42, 0.9); }

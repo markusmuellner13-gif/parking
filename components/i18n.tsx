@@ -200,6 +200,31 @@ const DICT: Record<string, { de: string; it: string; en: string }> = {
     en: "Demo mode: nothing is charged. For cards only the brand and last 4 digits are stored.",
   },
   "pay.cardLabel": { de: "Karte", it: "Carta", en: "Card" },
+  "pay.stripe": {
+    de: "💳 Sicher bezahlen (Karte / Apple Pay / Google Pay)",
+    it: "💳 Paga in sicurezza (carta / Apple Pay / Google Pay)",
+    en: "💳 Pay securely (card / Apple Pay / Google Pay)",
+  },
+  "pay.stripeNote": {
+    de: "Du wirst zur sicheren Stripe-Zahlungsseite weitergeleitet.",
+    it: "Verrai reindirizzato alla pagina di pagamento sicura di Stripe.",
+    en: "You'll be redirected to Stripe's secure payment page.",
+  },
+  "ticket.paid": {
+    de: "Zahlung erhalten – dein Parkschein ist aktiv! 🅿️",
+    it: "Pagamento ricevuto – il tuo ticket è attivo! 🅿️",
+    en: "Payment received – your ticket is active! 🅿️",
+  },
+  "ticket.cancelled": {
+    de: "Zahlung abgebrochen – es wurde nichts abgebucht.",
+    it: "Pagamento annullato – non è stato addebitato nulla.",
+    en: "Payment cancelled – nothing was charged.",
+  },
+  "drawer.verify": {
+    de: "🚓 Kennzeichen-Prüfung (Kontrolle)",
+    it: "🚓 Controllo targa (verifica)",
+    en: "🚓 Plate check (enforcement)",
+  },
 
   // API error codes
   "err.unauthorized": { de: "Bitte melde dich an.", it: "Effettua l'accesso.", en: "Please sign in." },

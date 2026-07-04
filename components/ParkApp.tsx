@@ -58,6 +58,7 @@ function ParkAppInner() {
   const [flyTo, setFlyTo] = useState<{ lat: number; lng: number; nonce: number } | null>(null);
   const [showSearchHere, setShowSearchHere] = useState(false);
   const [dark, setDark] = useState(false);
+  const [stripeOn, setStripeOn] = useState(false);
 
   const searchCenterRef = useRef<[number, number] | null>(null);
   const mapCenterRef = useRef<[number, number]>(FALLBACK);
@@ -170,10 +171,11 @@ function ParkAppInner() {
 
   // initial: session + geolocation
   useEffect(() => {
-    api<{ user: User | null; persistentDb: boolean }>("/api/auth/me")
+    api<{ user: User | null; persistentDb: boolean; stripeEnabled?: boolean }>("/api/auth/me")
       .then((d) => {
         setUser(d.user);
         setPersistentDb(d.persistentDb);
+        setStripeOn(Boolean(d.stripeEnabled));
         if (d.user) {
           refreshTickets();
           refreshVehicles();
@@ -186,6 +188,20 @@ function ParkAppInner() {
       if (watchIdRef.current != null) navigator.geolocation?.clearWatch(watchIdRef.current);
     };
   }, [refreshTickets, refreshVehicles, refreshPayments, startGeolocation]);
+
+  // returning from Stripe Checkout (?paid=<ticketId> / ?cancelled=1)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.has("paid")) {
+      showToast(t("ticket.paid"));
+      refreshTickets();
+      window.history.replaceState(null, "", "/");
+    } else if (params.has("cancelled")) {
+      showToast(t("ticket.cancelled"));
+      window.history.replaceState(null, "", "/");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const onMapMoved = useCallback((lat: number, lng: number) => {
     mapCenterRef.current = [lat, lng];
@@ -338,6 +354,7 @@ function ParkAppInner() {
           zone={selected}
           vehicles={vehicles}
           paymentMethods={paymentMethods}
+          stripeEnabled={stripeOn}
           onVehiclesChanged={refreshVehicles}
           onPaymentsChanged={refreshPayments}
           onClose={() => setSheet("none")}

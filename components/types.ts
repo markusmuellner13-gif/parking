@@ -74,7 +74,7 @@ export type Ticket = {
   startAt: number;
   endAt: number;
   stoppedAt: number | null;
-  status: "active" | "stopped" | "expired";
+  status: "active" | "stopped" | "expired" | "pending";
   paymentLabel: string | null;
 };
 

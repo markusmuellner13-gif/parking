@@ -3,6 +3,7 @@ import { db, newId } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { jsonError, handleError } from "@/lib/api";
 import { mapPaymentRow, paymentLabel } from "@/lib/payments";
+import { getStripe, stripeEnabled } from "@/lib/stripe";
 
 export type TicketRow = {
   id: string;
@@ -17,7 +18,7 @@ export type TicketRow = {
   startAt: number;
   endAt: number;
   stoppedAt: number | null;
-  status: "active" | "stopped" | "expired";
+  status: "active" | "stopped" | "expired" | "pending";
   paymentLabel: string | null;
 };
 
@@ -48,8 +49,13 @@ export async function GET() {
   try {
     const user = await requireUser();
     const c = await db();
+    // abandoned Stripe checkouts: drop pending tickets after 2 h
+    await c.execute({
+      sql: "DELETE FROM tickets WHERE user_id = ? AND status = 'pending' AND created_at < ?",
+      args: [user.id, Date.now() - 2 * 3600_000],
+    });
     const res = await c.execute({
-      sql: "SELECT * FROM tickets WHERE user_id = ? ORDER BY created_at DESC LIMIT 50",
+      sql: "SELECT * FROM tickets WHERE user_id = ? AND status != 'pending' ORDER BY created_at DESC LIMIT 50",
       args: [user.id],
     });
     const tickets = res.rows.map((r) => mapRow(r as unknown as Record<string, unknown>));
@@ -71,6 +77,9 @@ export async function POST(req: NextRequest) {
       priceHourCents?: number | null; maxStayMinutes?: number | null;
     } | undefined;
 
+    const useStripe = paymentMethodId === "stripe";
+    if (useStripe && !stripeEnabled()) return jsonError("Stripe ist nicht konfiguriert.", 503);
+
     if (!zone?.id || !zone?.name) return jsonError("Keine Parkzone ausgewählt.", 400, "no_zone");
     if (!vehicleId) return jsonError("Ein Fahrzeug mit Kennzeichen ist für den Kauf erforderlich.", 400, "plate_required");
     if (!paymentMethodId) return jsonError("Bitte wähle eine Zahlungsmethode.", 400, "payment_required");
@@ -87,13 +96,16 @@ export async function POST(req: NextRequest) {
     const vrow = veh.rows[0];
     if (!vrow) return jsonError("Fahrzeug nicht gefunden – bitte Kennzeichen anlegen.", 404, "vehicle_not_found");
 
-    const pm = await c.execute({
-      sql: "SELECT * FROM payment_methods WHERE id = ? AND user_id = ?",
-      args: [paymentMethodId, user.id],
-    });
-    const pmRow = pm.rows[0];
-    if (!pmRow) return jsonError("Zahlungsmethode nicht gefunden – bitte eine hinzufügen.", 404, "payment_not_found");
-    const payLabel = paymentLabel(mapPaymentRow(pmRow as unknown as Record<string, unknown>));
+    let payLabel = "Stripe";
+    if (!useStripe) {
+      const pm = await c.execute({
+        sql: "SELECT * FROM payment_methods WHERE id = ? AND user_id = ?",
+        args: [paymentMethodId, user.id],
+      });
+      const pmRow = pm.rows[0];
+      if (!pmRow) return jsonError("Zahlungsmethode nicht gefunden – bitte eine hinzufügen.", 404, "payment_not_found");
+      payLabel = paymentLabel(mapPaymentRow(pmRow as unknown as Record<string, unknown>));
+    }
 
     const activeForVehicle = await c.execute({
       sql: "SELECT id FROM tickets WHERE user_id = ? AND vehicle_id = ? AND status = 'active' AND end_at > ?",
@@ -108,17 +120,45 @@ export async function POST(req: NextRequest) {
     const now = Date.now();
     const id = newId();
 
+    // real payments: create the ticket as pending and send the user to Stripe
+    // Checkout; the webhook activates it once the payment succeeds
+    const initialStatus = useStripe && priceCents > 0 ? "pending" : "active";
+
     await c.execute({
       sql: `INSERT INTO tickets
         (id, user_id, vehicle_id, plate, zone_id, zone_name, zone_lat, zone_lng,
          price_hour_cents, price_cents, currency, start_at, end_at, status, created_at, payment_label)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'EUR', ?, ?, 'active', ?, ?)`,
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'EUR', ?, ?, ?, ?, ?)`,
       args: [
         id, user.id, vehicleId, String(vrow.plate), String(zone.id), String(zone.name),
         zone.lat ?? null, zone.lng ?? null,
-        priceHourCents, priceCents, now, now + minutes * 60_000, now, payLabel,
+        priceHourCents, priceCents, now, now + minutes * 60_000, initialStatus, now, payLabel,
       ],
     });
+
+    if (initialStatus === "pending") {
+      const origin = req.nextUrl.origin;
+      const session = await getStripe().checkout.sessions.create({
+        mode: "payment",
+        line_items: [
+          {
+            price_data: {
+              currency: "eur",
+              unit_amount: priceCents,
+              product_data: {
+                name: `ParkPilot – ${String(zone.name)}`,
+                description: `${String(vrow.plate)} · ${minutes} min`,
+              },
+            },
+            quantity: 1,
+          },
+        ],
+        metadata: { ticketId: id, minutes: String(minutes) },
+        success_url: `${origin}/?paid=${id}`,
+        cancel_url: `${origin}/?cancelled=1`,
+      });
+      return NextResponse.json({ checkoutUrl: session.url });
+    }
 
     const res = await c.execute({ sql: "SELECT * FROM tickets WHERE id = ?", args: [id] });
     return NextResponse.json({ ticket: mapRow(res.rows[0] as unknown as Record<string, unknown>) });

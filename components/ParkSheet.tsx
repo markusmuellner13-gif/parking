@@ -13,11 +13,12 @@ import { useI18n } from "./i18n";
 const PRESETS = [30, 60, 120, 180];
 
 export default function ParkSheet({
-  zone, vehicles, paymentMethods, onVehiclesChanged, onPaymentsChanged, onClose, onBought,
+  zone, vehicles, paymentMethods, stripeEnabled, onVehiclesChanged, onPaymentsChanged, onClose, onBought,
 }: {
   zone: Zone;
   vehicles: Vehicle[];
   paymentMethods: PaymentMethod[];
+  stripeEnabled: boolean;
   onVehiclesChanged: () => void;
   onPaymentsChanged: () => void;
   onClose: () => void;
@@ -67,12 +68,13 @@ export default function ParkSheet({
         vid = v?.id ?? null;
       }
       if (!vid) throw new Error(t("park.pickVehicle"));
-      if (!paymentId) throw new Error(t("park.pickPayment"));
-      const data = await api<{ ticket: Ticket }>("/api/tickets", {
+      const payId = stripeEnabled ? "stripe" : paymentId;
+      if (!payId) throw new Error(t("park.pickPayment"));
+      const data = await api<{ ticket?: Ticket; checkoutUrl?: string }>("/api/tickets", {
         method: "POST",
         body: JSON.stringify({
           vehicleId: vid,
-          paymentMethodId: paymentId,
+          paymentMethodId: payId,
           minutes,
           zone: {
             id: zone.id, name: zoneDisplayName(zone, t), lat: zone.lat, lng: zone.lng,
@@ -80,7 +82,11 @@ export default function ParkSheet({
           },
         }),
       });
-      onBought(data.ticket);
+      if (data.checkoutUrl) {
+        window.location.href = data.checkoutUrl; // off to Stripe's hosted payment page
+        return;
+      }
+      if (data.ticket) onBought(data.ticket);
     } catch (err) {
       setError(terr(err));
     } finally {
@@ -175,7 +181,14 @@ export default function ParkSheet({
 
       {/* payment method (mandatory) */}
       <h3 className="mb-1.5 mt-4 text-xs font-bold uppercase tracking-wide text-slate-400">{t("park.payment")}</h3>
-      {!addingPayment && paymentMethods.length > 0 ? (
+      {stripeEnabled ? (
+        <div className="rounded-xl bg-slate-50 p-3 ring-1 ring-slate-200">
+          <div className="flex items-center gap-2.5 text-sm font-semibold text-slate-800">
+            {t("pay.stripe")}
+          </div>
+          <p className="mt-1 text-[11px] text-slate-400">{t("pay.stripeNote")}</p>
+        </div>
+      ) : !addingPayment && paymentMethods.length > 0 ? (
         <>
           <PaymentMethodList
             methods={paymentMethods}
@@ -208,7 +221,9 @@ export default function ParkSheet({
       >
         {busy ? t("park.buying") : t("park.buy", { p: euro(priceCents) })}
       </button>
-      <p className="mt-2 text-center text-[11px] text-slate-400">{t("park.demoNote")}</p>
+      <p className="mt-2 text-center text-[11px] text-slate-400">
+        {stripeEnabled ? t("pay.stripeNote") : t("park.demoNote")}
+      </p>
     </Sheet>
   );
 }

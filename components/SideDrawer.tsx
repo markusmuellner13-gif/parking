@@ -291,6 +291,13 @@ export default function SideDrawer(props: Props) {
 
           <Section title={t("drawer.legal")}>
             <div className="space-y-1.5">
+              <Link
+                href="/verify"
+                className="flex items-center gap-3 rounded-xl bg-slate-50 px-3 py-2.5 text-sm font-semibold text-slate-700 ring-1 ring-slate-200 active:scale-[0.99]"
+              >
+                <span className="flex-1">{t("drawer.verify")}</span>
+                <span className="text-slate-400">›</span>
+              </Link>
               {legalLinks.map((l) => (
                 <Link
                   key={l.href}
